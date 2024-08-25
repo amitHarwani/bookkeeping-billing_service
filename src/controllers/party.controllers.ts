@@ -10,6 +10,11 @@ import {
     GetAllPartiesRequest,
     GetAllPartiesResponse,
 } from "../dto/party/get_all_parties_dto";
+import { GetPartyResponse } from "../dto/party/get_party_dto";
+import {
+    UpdatePartyRequest,
+    UpdatePartyResponse,
+} from "../dto/party/update_party_dto";
 
 export const getAllParties = asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
@@ -135,6 +140,97 @@ export const addParty = asyncHandler(
             new ApiResponse<AddPartyResponse>(201, {
                 party: partyAdded[0],
                 message: "party added successfully",
+            })
+        );
+    }
+);
+
+export const getParty = asyncHandler(
+    async (req: Request, res: Response, next: NextFunction) => {
+        /* party id and company id from request query  */
+        const partyId = Number(req.query.partyId);
+        const companyId = Number(req.query.companyId);
+
+        /* Finding the party from DB */
+        const partyFound = await db
+            .select()
+            .from(thirdParties)
+            .where(
+                and(
+                    eq(thirdParties.partyId, partyId),
+                    eq(thirdParties.companyId, companyId)
+                )
+            );
+
+        /* Party not found */
+        if (!partyFound.length) {
+            throw new ApiError(404, "party not found", []);
+        }
+
+        return res.status(200).json(
+            new ApiResponse<GetPartyResponse>(200, {
+                party: partyFound[0],
+            })
+        );
+    }
+);
+
+export const updateParty = asyncHandler(
+    async (req: Request, res: Response, next: NextFunction) => {
+        const body = req.body as UpdatePartyRequest;
+
+        /* Checking if party with duplicate name already exists */
+
+        const isPartyExists = await db
+            .select()
+            .from(thirdParties)
+            .where(
+                and(
+                    eq(
+                        sql`lower(${thirdParties.partyName})`,
+                        body.partyName.toLowerCase()
+                    ),
+                    eq(thirdParties.companyId, body.companyId)
+                )
+            );
+
+        /* Throw error if party with the same name but different partyId already exists */
+        if (isPartyExists.length && isPartyExists[0].partyId != body.partyId) {
+            throw new ApiError(
+                409,
+                "party with the same name already exists",
+                []
+            );
+        }
+
+        /* Updating party in DB */
+        const partyUpdated = await db
+            .update(thirdParties)
+            .set({
+                companyId: body.companyId,
+                countryId: body.countryId,
+                defaultPurchaseCreditAllowanceInDays:
+                    body.defaultPurchaseCreditAllowanceInDays,
+                defaultSaleCreditAllowanceInDays:
+                    body.defaultSaleCreditAllowanceInDays,
+                isActive: body.isActive,
+                partyName: body.partyName,
+                phoneNumber: body.phoneNumber,
+                taxDetails: body.taxDetails,
+                updatedAt: new Date(),
+            })
+            .where(
+                and(
+                    eq(thirdParties.partyId, body.partyId),
+                    eq(thirdParties.companyId, body.companyId)
+                )
+            )
+            .returning();
+
+        return res.status(200).json(
+            new ApiResponse<UpdatePartyResponse>(200, {
+                party: partyUpdated[0],
+                message: "party uodated successfully",
             })
         );
     }
