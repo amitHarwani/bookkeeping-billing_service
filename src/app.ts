@@ -30,7 +30,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /* Routes */
+import PartyRouter from "./routes/party.routes";
 
+app.use("/party",PartyRouter);
 
 
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
