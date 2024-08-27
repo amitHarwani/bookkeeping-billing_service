@@ -33,7 +33,7 @@ router.post(
 );
 
 router.get(
-    "/get-party/:partyId",
+    "/get-party",
     getPartyValidator(),
     validateInput,
     (req: Request, res: Response, next: NextFunction) => {
