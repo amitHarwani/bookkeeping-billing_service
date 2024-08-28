@@ -10,3 +10,5 @@ export const db = drizzle(queryClient, {schema, logger: true});
 
 export type User = InferSelectModel<typeof schema.users>;
 export type ThirdParty = InferSelectModel<typeof schema.thirdParties>;
+export type Purchase = InferSelectModel<typeof schema.purchases>;
+export type PurchaseItem = InferSelectModel<typeof schema.purchaseItems>

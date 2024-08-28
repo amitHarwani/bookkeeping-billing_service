@@ -31,8 +31,10 @@ app.use(express.urlencoded({ extended: true }));
 
 /* Routes */
 import PartyRouter from "./routes/party.routes";
+import PurchaseRouter from "./routes/purchase.routes";
 
 app.use("/party",PartyRouter);
+app.use("/purchase", PurchaseRouter);
 
 
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
