@@ -1,0 +1,34 @@
+import { Purchase } from "../../db";
+
+export class GetAllPurchasesRequest {
+    constructor(
+        public companyId: number,
+        public pageSize: number,
+        public query?: {
+            partyId?: number,
+            purchaseType?: "ALL" | "CASH" | "CREDIT",
+            fromTransactionDate?: string,
+            toTransactionDate?: string,
+            getOnlyOverduePayments?: boolean
+        },
+        public cursor?: {
+            updatedAt: Date,
+            purchaseId: bigint
+        }
+    ){
+
+    }
+}
+
+export class GetAllPurchasesResponse{
+    constructor(
+        public purchases: Purchase[],
+        public hasNextPage: boolean,
+        public nextPageCursor?: {
+            updatedAt: Date,
+            purchaseId: bigint
+        }
+    ){
+
+    }
+}

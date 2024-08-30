@@ -1,6 +1,48 @@
 import { body } from "express-validator";
 import { REGEX } from "../constants";
 
+export const getAllPurchasesValidator = () => {
+    return [
+        body("companyId").isInt().withMessage("invalid companyId field"),
+        body("pageSize").isInt().withMessage("invalid pageSize field"),
+        body("cursor").custom((value) => {
+            if (
+                !value ||
+                (typeof value === "object" &&
+                    typeof value?.purchaseId === "bigint" &&
+                    value?.updatedAt)
+            ) {
+                return true;
+            }
+            throw new Error("invalid cursor field");
+        }),
+        body("query").custom((value) => {
+            if (
+                !value ||
+                (typeof value === "object" &&
+                    (typeof value?.partyId === "number" ||
+                        (typeof value?.purchaseType === "string" &&
+                            (value?.purchaseType === "ALL" ||
+                                value?.purchaseType === "CASH" ||
+                                value?.purchaseType === "CREDIT")) ||
+                        (typeof value?.fromTransactionDate === "string" &&
+                            REGEX.dateWithTime.test(
+                                value?.fromTransactionDate
+                            ) &&
+                            typeof value?.toTransactionDate === "string" &&
+                            REGEX.dateWithTime.test(
+                                value?.toTransactionDate
+                            )) ||
+                        typeof value?.getOnlyOverduePayments === "boolean"))
+            ) {
+                return true;
+            } else if (typeof value === "object") {
+                return true;
+            }
+            throw new Error("invalid query field");
+        }),
+    ];
+};
 export const addPurchaseValidator = () => {
     return [
         body("invoiceNumber").isInt().withMessage("invalid invoice number"),

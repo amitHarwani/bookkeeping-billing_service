@@ -28,8 +28,8 @@ export const getAllPartiesValidator = () => {
             }
             throw new Error("invalid query field");
         }),
-    ]
-}
+    ];
+};
 
 export const addPartyValidator = () => {
     return [
@@ -67,8 +67,8 @@ export const getPartyValidator = () => {
     return [
         query("partyId").isInt().withMessage("invalid party id"),
         query("companyId").isInt().withMessage("invalid company id"),
-    ]
-}
+    ];
+};
 
 export const updatePartyValidator = () => {
     return [

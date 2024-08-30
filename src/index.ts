@@ -5,8 +5,9 @@ dotenv.config({
 });
 
 import app from "./app";
+import logger from "./utils/logger";
 
 
 app.listen(process.env.PORT, () => {
-    console.log(`Billing Service Listening On Port ${process.env.PORT}`);
+    logger.info(`Billing Service Listening On Port ${process.env.PORT}`);
 });
