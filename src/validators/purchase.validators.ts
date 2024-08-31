@@ -33,7 +33,8 @@ export const getAllPurchasesValidator = () => {
                             REGEX.dateWithTime.test(
                                 value?.toTransactionDate
                             )) ||
-                        typeof value?.getOnlyOverduePayments === "boolean"))
+                        typeof value?.getOnlyOverduePayments === "boolean" ||
+                        typeof value?.invoiceNumberSearchQuery === "number"))
             ) {
                 return true;
             } else if (typeof value === "object") {

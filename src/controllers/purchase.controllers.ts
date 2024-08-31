@@ -28,9 +28,10 @@ export const getAllPurchases = asyncHandler(
             let purchaseTypeQuery;
             let transactionDateQuery;
             let overduePaymentsQuery;
+            let invoiceNumberQuery;
 
             /* Querying by partyId */
-            if (typeof body?.query?.partyId === "bigint") {
+            if (typeof body?.query?.partyId === "number") {
                 partyIdQuery = eq(purchases.partyId, body.query.partyId);
             }
             /* Querying by purchase type : Cash or Credit */
@@ -51,11 +52,11 @@ export const getAllPurchases = asyncHandler(
             ) {
                 transactionDateQuery = between(
                     purchases.createdAt,
-                    moment(
+                    moment.utc(
                         body.query.fromTransactionDate,
                         DATE_TIME_FORMATS.dateTimeFormat24hr
                     ).toDate(),
-                    moment(
+                    moment.utc(
                         body.query.toTransactionDate,
                         DATE_TIME_FORMATS.dateTimeFormat24hr
                     ).toDate()
@@ -65,13 +66,23 @@ export const getAllPurchases = asyncHandler(
             if (body?.query?.getOnlyOverduePayments) {
                 overduePaymentsQuery = sql`${purchases.paymentDueDate} > ${moment.utc().format(DATE_TIME_FORMATS.dateFormat)}`;
             }
+            if (
+                body?.query?.invoiceNumberSearchQuery &&
+                !isNaN(body?.query?.invoiceNumberSearchQuery)
+            ) {
+                invoiceNumberQuery = eq(
+                    purchases.invoiceNumber,
+                    body.query.invoiceNumberSearchQuery
+                );
+            }
 
             /* Combining the query */
             customQuery = and(
                 partyIdQuery,
                 purchaseTypeQuery,
                 transactionDateQuery,
-                overduePaymentsQuery
+                overduePaymentsQuery,
+                invoiceNumberQuery
             );
         }
 

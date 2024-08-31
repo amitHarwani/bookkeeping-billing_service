@@ -14,7 +14,7 @@ const router = Router();
 
 router.post(
     "/get-all-purchases",
-    getAllPurchasesValidator,
+    getAllPurchasesValidator(),
     validateInput,
     checkAccess(12),
     getAllPurchases

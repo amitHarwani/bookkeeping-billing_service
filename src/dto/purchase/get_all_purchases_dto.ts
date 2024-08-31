@@ -9,7 +9,8 @@ export class GetAllPurchasesRequest {
             purchaseType?: "ALL" | "CASH" | "CREDIT",
             fromTransactionDate?: string,
             toTransactionDate?: string,
-            getOnlyOverduePayments?: boolean
+            getOnlyOverduePayments?: boolean,
+            invoiceNumberSearchQuery?: number
         },
         public cursor?: {
             updatedAt: Date,
