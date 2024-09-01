@@ -3,7 +3,17 @@ import asyncHandler from "../utils/async_handler";
 import { AddPartyRequest, AddPartyResponse } from "../dto/party/add_party_dto";
 import { db } from "../db";
 import { thirdParties } from "db_service";
-import { and, asc, desc, eq, gt, ilike, or, sql } from "drizzle-orm";
+import {
+    and,
+    asc,
+    desc,
+    eq,
+    getTableColumns,
+    gt,
+    ilike,
+    or,
+    sql,
+} from "drizzle-orm";
 import { ApiError } from "../utils/ApiError";
 import { ApiResponse } from "../utils/ApiResponse";
 import {
@@ -69,9 +79,36 @@ export const getAllParties = asyncHandler(
             whereClause = customQuery;
         }
 
+        /* All third party columns */
+        const partyColumns = getTableColumns(thirdParties);
+
+        /* Default cols to select always */
+        let colsToSelect = {
+            partyId: thirdParties.partyId,
+            updatedAt: thirdParties.updatedAt,
+        };
+
+        /* If select is passed */
+        if (body?.select) {
+            /* Keys of all third party columns */
+            const partyColumnKeys = Object.keys(partyColumns);
+
+            /* Add column to colsToSelect */
+            body.select?.forEach((col) => {
+                /* If column name is invalid throw error */
+                if (!partyColumnKeys.includes(col)) {
+                    throw new ApiError(422, `invalid col to select ${col}`, []);
+                }
+
+                colsToSelect = { ...colsToSelect, [col]: thirdParties[col] };
+            });
+        } else {
+            /* Else, select all columns */
+            colsToSelect = partyColumns;
+        }
         /* DB Query */
         const allParties = await db
-            .select()
+            .select(colsToSelect)
             .from(thirdParties)
             .where(whereClause)
             .limit(body.pageSize)
@@ -88,7 +125,7 @@ export const getAllParties = asyncHandler(
         }
 
         return res.status(200).json(
-            new ApiResponse<GetAllPartiesResponse>(200, {
+            new ApiResponse<GetAllPartiesResponse<typeof allParties>>(200, {
                 parties: allParties,
                 hasNextPage: nextPageCursor ? true : false,
                 nextPageCursor: nextPageCursor,

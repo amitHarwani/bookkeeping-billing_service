@@ -11,13 +11,14 @@ export class GetAllPartiesRequest {
         public cursor?: {
             partyId: number;
             updatedAt: Date;
-        }
+        },
+        public select?: [keyof ThirdParty]
     ) {}
 }
 
-export class GetAllPartiesResponse {
+export class GetAllPartiesResponse<T> {
     constructor(
-        public parties: ThirdParty[],
+        public parties: T,
         public hasNextPage: boolean,
         public nextPageCursor?: {
             partyId: number;

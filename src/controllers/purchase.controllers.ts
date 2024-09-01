@@ -11,9 +11,20 @@ import {
     GetAllPurchasesRequest,
     GetAllPurchasesResponse,
 } from "../dto/purchase/get_all_purchases_dto";
-import { and, asc, between, desc, eq, gt, or, sql } from "drizzle-orm";
+import {
+    and,
+    asc,
+    between,
+    desc,
+    eq,
+    getTableColumns,
+    gt,
+    or,
+    sql,
+} from "drizzle-orm";
 import moment from "moment";
 import { DATE_TIME_FORMATS } from "../constants";
+import { ApiError } from "../utils/ApiError";
 
 export const getAllPurchases = asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
@@ -52,14 +63,18 @@ export const getAllPurchases = asyncHandler(
             ) {
                 transactionDateQuery = between(
                     purchases.createdAt,
-                    moment.utc(
-                        body.query.fromTransactionDate,
-                        DATE_TIME_FORMATS.dateTimeFormat24hr
-                    ).toDate(),
-                    moment.utc(
-                        body.query.toTransactionDate,
-                        DATE_TIME_FORMATS.dateTimeFormat24hr
-                    ).toDate()
+                    moment
+                        .utc(
+                            body.query.fromTransactionDate,
+                            DATE_TIME_FORMATS.dateTimeFormat24hr
+                        )
+                        .toDate(),
+                    moment
+                        .utc(
+                            body.query.toTransactionDate,
+                            DATE_TIME_FORMATS.dateTimeFormat24hr
+                        )
+                        .toDate()
                 );
             }
             /* Querying for overdue payments */
@@ -108,9 +123,37 @@ export const getAllPurchases = asyncHandler(
             whereClause = customQuery;
         }
 
+        /* All purchase columns */
+        const purchaseColumns = getTableColumns(purchases);
+
+        /* Default cols to select always */
+        let colsToSelect = {
+            purchaseId: purchases.purchaseId,
+            updatedAt: purchases.updatedAt,
+        };
+
+        /* If select is passed */
+        if (body?.select) {
+            /* Keys of all purchase columns */
+            const purchaseColumnKeys = Object.keys(purchaseColumns);
+
+            /* Add column to colsToSelect */
+            body.select?.forEach((col) => {
+                /* If column name is invalid throw error */
+                if (!purchaseColumnKeys.includes(col)) {
+                    throw new ApiError(422, `invalid col to select ${col}`, []);
+                }
+
+                colsToSelect = { ...colsToSelect, [col]: purchaseColumns[col] };
+            });
+        } else {
+            /* Else, select all columns */
+            colsToSelect = purchaseColumns;
+        }
+
         /* DB Query */
         const allPurchases = await db
-            .select()
+            .select(colsToSelect)
             .from(purchases)
             .where(whereClause)
             .limit(body.pageSize)
@@ -127,7 +170,7 @@ export const getAllPurchases = asyncHandler(
         }
 
         return res.status(200).json(
-            new ApiResponse<GetAllPurchasesResponse>(200, {
+            new ApiResponse<GetAllPurchasesResponse<typeof allPurchases>>(200, {
                 purchases: allPurchases,
                 hasNextPage: nextPageCursor ? true : false,
                 nextPageCursor: nextPageCursor,

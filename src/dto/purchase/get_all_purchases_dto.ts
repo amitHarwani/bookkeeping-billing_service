@@ -15,15 +15,16 @@ export class GetAllPurchasesRequest {
         public cursor?: {
             updatedAt: Date,
             purchaseId: bigint
-        }
+        },
+        public select?: [keyof Purchase]
     ){
 
     }
 }
 
-export class GetAllPurchasesResponse{
+export class GetAllPurchasesResponse<T>{
     constructor(
-        public purchases: Purchase[],
+        public purchases: T,
         public hasNextPage: boolean,
         public nextPageCursor?: {
             updatedAt: Date,
