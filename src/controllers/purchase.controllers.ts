@@ -25,6 +25,8 @@ import {
 import moment from "moment";
 import { DATE_TIME_FORMATS } from "../constants";
 import { ApiError } from "../utils/ApiError";
+import axios from "axios";
+import { RecordPurchaseRequest } from "../dto/item/record_purchase_dto";
 
 export const getAllPurchases = asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
@@ -183,6 +185,10 @@ export const addPurchase = asyncHandler(
         const body = req.body as AddPurchaseRequest;
 
         await db.transaction(async (tx) => {
+            let updateInventoryBody: RecordPurchaseRequest = {
+                itemsPurchased: [],
+            };
+
             /* Adding to purchase table */
             const purchaseAdded = await tx
                 .insert(purchases)
@@ -191,12 +197,16 @@ export const addPurchase = asyncHandler(
                     companyId: body.companyId,
                     partyId: body.partyId,
                     partyName: body.partyName,
-                    subtotal: body.subtotal.toString(),
+                    subtotal: body.subtotal.toFixed(body.decimalRoundTo),
                     discount: body.discount.toString(),
-                    totalAfterDiscount: body.totalAfterDiscount.toString(),
+                    totalAfterDiscount: body.totalAfterDiscount.toFixed(
+                        body.decimalRoundTo
+                    ),
                     taxPercent: body.taxPercent.toString(),
                     taxName: body.taxName,
-                    totalAfterTax: body.totalAfterTax.toString(),
+                    totalAfterTax: body.totalAfterTax.toFixed(
+                        body.decimalRoundTo
+                    ),
                     isCredit: body.isCredit,
                     paymentDueDate: body.paymentDueDate,
                     amountPaid: body.amountPaid.toString(),
@@ -221,13 +231,31 @@ export const addPurchase = asyncHandler(
                         unitName: purchaseItem.unitName,
                         unitsPurchased: purchaseItem.unitsPurchased.toString(),
                         pricePerUnit: purchaseItem.pricePerUnit.toString(),
-                        subtotal: purchaseItem.subtotal.toString(),
+                        subtotal: purchaseItem.subtotal.toFixed(
+                            body.decimalRoundTo
+                        ),
                         taxPercent: purchaseItem.taxPercent.toString(),
-                        totalAfterTax: purchaseItem.totalAfterTax.toString(),
+                        totalAfterTax: purchaseItem.totalAfterTax.toFixed(
+                            body.decimalRoundTo
+                        ),
                     })
                     .returning();
                 purchaseItemsAdded.push(purchaseItemAdded[0]);
+
+                /* Adding to updateInventoryBody request */
+                updateInventoryBody.itemsPurchased.push({
+                    companyId: body.companyId,
+                    itemId: purchaseItem.itemId,
+                    pricePerUnit: purchaseItem.pricePerUnit,
+                    unitsPurchased: purchaseItem.unitsPurchased,
+                });
             }
+
+            /* Updating Inventory */
+            await axios.patch(
+                `${process.env.INVENTORY_SERVICE}/${process.env.RECORD_PURCHASE_PATH}`,
+                updateInventoryBody
+            );
 
             return res.status(201).json(
                 new ApiResponse<AddPurchaseResponse>(201, {

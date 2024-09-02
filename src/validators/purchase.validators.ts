@@ -99,6 +99,7 @@ export const addPurchaseValidator = () => {
             }
             throw new Error("invalid receipt number");
         }),
+        body("decimalRoundTo").isInt().withMessage("invalid decimal round to field"),
         body("items").isArray().withMessage("invalid items field"),
     ];
 };

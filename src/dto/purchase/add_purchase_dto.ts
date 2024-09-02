@@ -33,6 +33,8 @@ export class AddPurchaseRequest {
         public paymentCompletionDate: string | null,
         public receiptNumber: string | null,
 
+        public decimalRoundTo: number,
+
         public items: PurchaseItemsRequest[]
     ) {}
 }
