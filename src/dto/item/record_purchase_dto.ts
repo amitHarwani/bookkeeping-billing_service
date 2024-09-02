@@ -1,5 +1,6 @@
 export class RecordPurchaseRequest {
     constructor(
+        public purchaseId: number | null,
         public itemsPurchased: Array<{
             itemId: number;
             companyId: number;

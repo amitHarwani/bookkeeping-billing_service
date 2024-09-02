@@ -186,6 +186,7 @@ export const addPurchase = asyncHandler(
 
         await db.transaction(async (tx) => {
             let updateInventoryBody: RecordPurchaseRequest = {
+                purchaseId: null,
                 itemsPurchased: [],
             };
 
@@ -217,6 +218,8 @@ export const addPurchase = asyncHandler(
                     receiptNumber: body.receiptNumber,
                 })
                 .returning();
+
+            updateInventoryBody.purchaseId = purchaseAdded[0].purchaseId;
 
             /* Adding  items to purchaseItems table */
             let purchaseItemsAdded: PurchaseItem[] = [];
