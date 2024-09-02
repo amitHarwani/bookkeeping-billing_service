@@ -9,7 +9,7 @@ export const getAllPurchasesValidator = () => {
             if (
                 !value ||
                 (typeof value === "object" &&
-                    typeof value?.purchaseId === "bigint" &&
+                    typeof value?.purchaseId === "number" &&
                     value?.updatedAt)
             ) {
                 return true;
@@ -56,10 +56,13 @@ export const addPurchaseValidator = () => {
             .withMessage("partyName is required")
             .escape(),
         body("subtotal").isNumeric().withMessage("invalid subtotal"),
-        body("discout").isNumeric().withMessage("invalid discount"),
+        body("discount").isNumeric().withMessage("invalid discount"),
         body("totalAfterDiscount")
             .isNumeric()
             .withMessage("invalid total after discount"),
+        body("tax")
+            .isNumeric()
+            .withMessage("invalid total after tax"),
         body("taxPercent").isNumeric().withMessage("invalid tax percentage"),
         body("taxName")
             .isString()
@@ -99,7 +102,9 @@ export const addPurchaseValidator = () => {
             }
             throw new Error("invalid receipt number");
         }),
-        body("decimalRoundTo").isInt().withMessage("invalid decimal round to field"),
+        body("decimalRoundTo")
+            .isInt()
+            .withMessage("invalid decimal round to field"),
         body("items").isArray().withMessage("invalid items field"),
     ];
 };

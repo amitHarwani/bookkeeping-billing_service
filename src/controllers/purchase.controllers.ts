@@ -202,6 +202,7 @@ export const addPurchase = asyncHandler(
                     totalAfterDiscount: body.totalAfterDiscount.toFixed(
                         body.decimalRoundTo
                     ),
+                    tax: body.tax.toFixed(body.decimalRoundTo),
                     taxPercent: body.taxPercent.toString(),
                     taxName: body.taxName,
                     totalAfterTax: body.totalAfterTax.toFixed(
@@ -234,6 +235,7 @@ export const addPurchase = asyncHandler(
                         subtotal: purchaseItem.subtotal.toFixed(
                             body.decimalRoundTo
                         ),
+                        tax: body.tax.toFixed(body.decimalRoundTo),
                         taxPercent: purchaseItem.taxPercent.toString(),
                         totalAfterTax: purchaseItem.totalAfterTax.toFixed(
                             body.decimalRoundTo

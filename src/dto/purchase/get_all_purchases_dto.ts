@@ -14,7 +14,7 @@ export class GetAllPurchasesRequest {
         },
         public cursor?: {
             updatedAt: Date,
-            purchaseId: bigint
+            purchaseId: number
         },
         public select?: [keyof Purchase]
     ){
@@ -28,7 +28,7 @@ export class GetAllPurchasesResponse<T>{
         public hasNextPage: boolean,
         public nextPageCursor?: {
             updatedAt: Date,
-            purchaseId: bigint
+            purchaseId: number
         }
     ){
 

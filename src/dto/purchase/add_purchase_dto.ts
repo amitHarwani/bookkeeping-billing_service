@@ -9,6 +9,7 @@ export interface PurchaseItemsRequest {
     unitsPurchased: number;
     pricePerUnit: number;
     subtotal: number;
+    tax: number,
     taxPercent: number;
     totalAfterTax: number;
 }
@@ -22,6 +23,7 @@ export class AddPurchaseRequest {
         public subtotal: number,
         public discount: number = 0,
         public totalAfterDiscount: number,
+        public tax: number,
         public taxPercent: number = 0,
         public taxName: string = "",
         public totalAfterTax: number,
