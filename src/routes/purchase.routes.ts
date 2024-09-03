@@ -1,13 +1,15 @@
-import { Router } from "express";
+import { NextFunction, Request, Response, Router } from "express";
 import {
     addPurchaseValidator,
     getAllPurchasesValidator,
+    getPurchaseValidator,
 } from "../validators/purchase.validators";
 import { validateInput } from "../validators";
 import { checkAccess } from "../middlewares/auth.middleware";
 import {
     addPurchase,
     getAllPurchases,
+    getPurchase,
 } from "../controllers/purchase.controllers";
 
 const router = Router();
@@ -25,6 +27,16 @@ router.post(
     validateInput,
     checkAccess(13),
     addPurchase
+);
+
+router.get(
+    "/get-purchase",
+    getPurchaseValidator(),
+    validateInput,
+    (req: Request, res: Response, next: NextFunction) => {
+        checkAccess(12, Number(req.query?.companyId))(req, res, next);
+    },
+    getPurchase
 );
 
 export default router;

@@ -27,6 +27,7 @@ import { DATE_TIME_FORMATS } from "../constants";
 import { ApiError } from "../utils/ApiError";
 import axios from "axios";
 import { RecordPurchaseRequest } from "../dto/item/record_purchase_dto";
+import { GetPurchaseResponse } from "../dto/purchase/get_purchase_dto";
 
 export const getAllPurchases = asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
@@ -270,5 +271,48 @@ export const addPurchase = asyncHandler(
                 })
             );
         });
+    }
+);
+
+export const getPurchase = asyncHandler(
+    async (req: Request, res: Response, next: NextFunction) => {
+        /* Purchase id and company id from query */
+        const purchaseId = Number(req.query?.purchaseId);
+        const companyId = Number(req.query?.companyId);
+
+        /* Purchase details */
+        const purchaseDetailsRequest = db
+            .select()
+            .from(purchases)
+            .where(
+                and(
+                    eq(purchases.purchaseId, purchaseId),
+                    eq(purchases.companyId, companyId)
+                )
+            );
+
+        /* Purchase Items */
+        const purchaseItemsRequest = db
+            .select()
+            .from(purchaseItems)
+            .where(
+                and(
+                    eq(purchaseItems.purchaseId, purchaseId),
+                    eq(purchaseItems.companyId, companyId)
+                )
+            );
+
+        /* Parallel calls */
+        const [purchaseDetails, purchaseItemsFromDB] = await Promise.all([
+            purchaseDetailsRequest,
+            purchaseItemsRequest,
+        ]);
+
+        return res.status(200).json(
+            new ApiResponse<GetPurchaseResponse>(200, {
+                purchase: purchaseDetails[0],
+                purchaseItems: purchaseItemsFromDB,
+            })
+        );
     }
 );

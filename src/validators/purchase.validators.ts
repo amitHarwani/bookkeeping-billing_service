@@ -1,4 +1,4 @@
-import { body } from "express-validator";
+import { body, query } from "express-validator";
 import { REGEX } from "../constants";
 
 export const getAllPurchasesValidator = () => {
@@ -60,9 +60,7 @@ export const addPurchaseValidator = () => {
         body("totalAfterDiscount")
             .isNumeric()
             .withMessage("invalid total after discount"),
-        body("tax")
-            .isNumeric()
-            .withMessage("invalid total after tax"),
+        body("tax").isNumeric().withMessage("invalid total after tax"),
         body("taxPercent").isNumeric().withMessage("invalid tax percentage"),
         body("taxName")
             .isString()
@@ -106,5 +104,12 @@ export const addPurchaseValidator = () => {
             .isInt()
             .withMessage("invalid decimal round to field"),
         body("items").isArray().withMessage("invalid items field"),
+    ];
+};
+
+export const getPurchaseValidator = () => {
+    return [
+        query("purchaseId").isInt().withMessage("invalid purchase id"),
+        query("companyId").isInt().withMessage("invalid company id"),
     ];
 };
