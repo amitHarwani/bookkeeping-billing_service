@@ -3,9 +3,10 @@ import asyncHandler from "../utils/async_handler";
 import {
     AddPurchaseRequest,
     AddPurchaseResponse,
+    PurchaseItemsRequest,
 } from "../dto/purchase/add_purchase_dto";
 import { db, PurchaseItem } from "../db";
-import { purchaseItems, purchases } from "db_service";
+import { items, purchaseItems, purchases, saleItems } from "db_service";
 import { ApiResponse } from "../utils/ApiResponse";
 import {
     GetAllPurchasesRequest,
@@ -19,6 +20,7 @@ import {
     eq,
     getTableColumns,
     gt,
+    isNull,
     or,
     sql,
 } from "drizzle-orm";
@@ -28,6 +30,11 @@ import { ApiError } from "../utils/ApiError";
 import axios from "axios";
 import { RecordPurchaseRequest } from "../dto/item/record_purchase_dto";
 import { GetPurchaseResponse } from "../dto/purchase/get_purchase_dto";
+import {
+    UpdatePurchaseRequest,
+    UpdatePurchaseResponse,
+} from "../dto/purchase/update_purchase_dto";
+import { UpdateInventoryHelper } from "../utils/UpdateInventoryHelper";
 
 export const getAllPurchases = asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
@@ -160,7 +167,7 @@ export const getAllPurchases = asyncHandler(
             .from(purchases)
             .where(whereClause)
             .limit(body.pageSize)
-            .orderBy(desc(purchases.updatedAt), asc(purchases.partyId));
+            .orderBy(desc(purchases.updatedAt), asc(purchases.purchaseId));
 
         /* Setting the next page cursor according to the last item values */
         let nextPageCursor;
@@ -181,16 +188,12 @@ export const getAllPurchases = asyncHandler(
         );
     }
 );
+
 export const addPurchase = asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
         const body = req.body as AddPurchaseRequest;
 
         await db.transaction(async (tx) => {
-            let updateInventoryBody: RecordPurchaseRequest = {
-                purchaseId: null,
-                itemsPurchased: [],
-            };
-
             /* Adding to purchase table */
             const purchaseAdded = await tx
                 .insert(purchases)
@@ -220,7 +223,11 @@ export const addPurchase = asyncHandler(
                 })
                 .returning();
 
-            updateInventoryBody.purchaseId = purchaseAdded[0].purchaseId;
+            let updateInventoryBody: RecordPurchaseRequest = {
+                purchaseId: purchaseAdded[0].purchaseId,
+                companyId: body.companyId,
+                items: [],
+            };
 
             /* Adding  items to purchaseItems table */
             let purchaseItemsAdded: PurchaseItem[] = [];
@@ -239,18 +246,18 @@ export const addPurchase = asyncHandler(
                         subtotal: purchaseItem.subtotal.toFixed(
                             body.decimalRoundTo
                         ),
-                        tax: body.tax.toFixed(body.decimalRoundTo),
+                        tax: purchaseItem.tax.toFixed(body.decimalRoundTo),
                         taxPercent: purchaseItem.taxPercent.toString(),
                         totalAfterTax: purchaseItem.totalAfterTax.toFixed(
                             body.decimalRoundTo
                         ),
                     })
                     .returning();
+
                 purchaseItemsAdded.push(purchaseItemAdded[0]);
 
                 /* Adding to updateInventoryBody request */
-                updateInventoryBody.itemsPurchased.push({
-                    companyId: body.companyId,
+                updateInventoryBody.items.push({
                     itemId: purchaseItem.itemId,
                     pricePerUnit: purchaseItem.pricePerUnit,
                     unitsPurchased: purchaseItem.unitsPurchased,
@@ -258,8 +265,7 @@ export const addPurchase = asyncHandler(
             }
 
             /* Updating Inventory */
-            await axios.patch(
-                `${process.env.INVENTORY_SERVICE}/${process.env.RECORD_PURCHASE_PATH}`,
+            await new UpdateInventoryHelper().recordPurchase(
                 updateInventoryBody
             );
 
@@ -314,5 +320,192 @@ export const getPurchase = asyncHandler(
                 purchaseItems: purchaseItemsFromDB,
             })
         );
+    }
+);
+
+export const updatePurchase = asyncHandler(
+    async (req: Request, res: Response, next: NextFunction) => {
+        const body = req.body as UpdatePurchaseRequest;
+
+        await db.transaction(async (tx) => {
+            /* Updating in purchase table */
+            const purchaseUpdated = await tx
+                .update(purchases)
+                .set({
+                    invoiceNumber: body.invoiceNumber,
+                    companyId: body.companyId,
+                    partyId: body.partyId,
+                    partyName: body.partyName,
+                    subtotal: body.subtotal.toFixed(body.decimalRoundTo),
+                    discount: body.discount.toString(),
+                    totalAfterDiscount: body.totalAfterDiscount.toFixed(
+                        body.decimalRoundTo
+                    ),
+                    tax: body.tax.toFixed(body.decimalRoundTo),
+                    taxPercent: body.taxPercent.toString(),
+                    taxName: body.taxName,
+                    totalAfterTax: body.totalAfterTax.toFixed(
+                        body.decimalRoundTo
+                    ),
+                    isCredit: body.isCredit,
+                    paymentDueDate: body.paymentDueDate,
+                    amountPaid: body.amountPaid.toString(),
+                    amountDue: body.amountDue.toString(),
+                    isFullyPaid: body.isFullyPaid,
+                    paymentCompletionDate: body.paymentCompletionDate,
+                    receiptNumber: body.receiptNumber,
+                })
+                .where(
+                    and(
+                        eq(purchases.purchaseId, body.purchaseId),
+                        eq(purchases.companyId, body.companyId)
+                    )
+                )
+                .returning();
+
+            /* Storing items added, updated or removed separately */
+            const itemsAdded: Array<PurchaseItemsRequest> = [];
+            const itemsUpdated: Array<PurchaseItemsRequest> = [];
+            const itemsRemoved: Array<{ itemId: number }> = [];
+
+            /* To store old an new purchase items as objects for efficency */
+            const oldPurchaseItemsAsObj: { [itemId: number]: PurchaseItem } =
+                {};
+            const updatedPurchaseItemsAsObj: {
+                [itemId: number]: PurchaseItemsRequest;
+            } = {};
+
+            for (const item of body.oldItems) {
+                oldPurchaseItemsAsObj[item.itemId] = item;
+            }
+            for (const item of body.items) {
+                updatedPurchaseItemsAsObj[item.itemId] = item;
+            }
+
+            /* For each item in updated list */
+            for (const item in updatedPurchaseItemsAsObj) {
+                /* New item */
+                const newItem = updatedPurchaseItemsAsObj[item];
+
+                /* If item does not exist in old list: Its an addition */
+                if (!oldPurchaseItemsAsObj[item]) {
+                    itemsAdded.push(newItem);
+                } else {
+                    /* old item */
+                    const old = oldPurchaseItemsAsObj[item];
+                    /* If the fields below are different the item has been updated */
+                    if (
+                        old.itemName != newItem.itemName ||
+                        Number(old.totalAfterTax) != newItem.totalAfterTax ||
+                        Number(old.unitsPurchased) != newItem.unitsPurchased ||
+                        old.unitName != newItem.unitName ||
+                        Number(old.pricePerUnit) != newItem.pricePerUnit ||
+                        Number(old.tax) != newItem.tax
+                    ) {
+                        itemsUpdated.push(newItem);
+                    }
+                    /* Delete object from old list */
+                    delete oldPurchaseItemsAsObj[item];
+                }
+            }
+
+            /* If items remain in old list, they are removed now, add them to remove list */
+            if (Object.keys(oldPurchaseItemsAsObj).length) {
+                for (const item in oldPurchaseItemsAsObj) {
+                    itemsRemoved.push({ itemId: Number(item) });
+                }
+            }
+
+            let addItemsReq;
+            let updateItemsReq;
+            let deleteItemsReq;
+            /* Updating in db */
+
+            for (const item of itemsAdded) {
+                addItemsReq = tx
+                    .insert(purchaseItems)
+                    .values({
+                        purchaseId: body.purchaseId,
+                        itemId: item.itemId,
+                        itemName: item.itemName,
+                        companyId: item.companyId,
+                        unitId: item.unitId,
+                        unitName: item.unitName,
+                        unitsPurchased: item.unitsPurchased.toString(),
+                        pricePerUnit: item.pricePerUnit.toString(),
+                        subtotal: item.subtotal.toFixed(body.decimalRoundTo),
+                        tax: item.tax.toFixed(body.decimalRoundTo),
+                        taxPercent: item.taxPercent.toString(),
+                        totalAfterTax: item.totalAfterTax.toFixed(
+                            body.decimalRoundTo
+                        ),
+                    })
+                    .returning();
+            }
+            for (const item of itemsUpdated) {
+                updateItemsReq = tx
+                    .update(purchaseItems)
+                    .set({
+                        purchaseId: body.purchaseId,
+                        itemId: item.itemId,
+                        itemName: item.itemName,
+                        companyId: item.companyId,
+                        unitId: item.unitId,
+                        unitName: item.unitName,
+                        unitsPurchased: item.unitsPurchased.toString(),
+                        pricePerUnit: item.pricePerUnit.toString(),
+                        subtotal: item.subtotal.toFixed(body.decimalRoundTo),
+                        tax: item.tax.toFixed(body.decimalRoundTo),
+                        taxPercent: item.taxPercent.toString(),
+                        totalAfterTax: item.totalAfterTax.toFixed(
+                            body.decimalRoundTo
+                        ),
+                    })
+                    .where(
+                        and(
+                            eq(purchaseItems.itemId, item.itemId),
+                            eq(purchaseItems.purchaseId, body.purchaseId),
+                            eq(purchaseItems.companyId, body.companyId)
+                        )
+                    )
+                    .returning();
+            }
+
+            for (const item of itemsRemoved) {
+                deleteItemsReq = tx
+                    .delete(purchaseItems)
+                    .where(
+                        and(
+                            eq(purchaseItems.itemId, item.itemId),
+                            eq(purchaseItems.purchaseId, body.purchaseId),
+                            eq(purchaseItems.companyId, body.companyId)
+                        )
+                    );
+            }
+
+            /* Parallel calls */
+            const [addItemsRes, updatedItemsRes] = await Promise.all([
+                addItemsReq,
+                updateItemsReq,
+                deleteItemsReq,
+            ]);
+
+            /* Final list of purchase items */
+            let updatedItemsListInDb: Array<PurchaseItem> = [];
+            if (addItemsRes) {
+                updatedItemsListInDb = [...addItemsRes];
+            }
+            if (updatedItemsRes) {
+                updatedItemsListInDb = [...updatedItemsRes];
+            }
+
+            return res.status(200).json(
+                new ApiResponse<UpdatePurchaseResponse>(200, {
+                    purchase: purchaseUpdated[0],
+                    purchaseItems: updatedItemsListInDb,
+                    message: "purchase updated successfully",
+                })
+            );
+        });
     }
 );

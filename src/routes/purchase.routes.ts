@@ -39,4 +39,6 @@ router.get(
     getPurchase
 );
 
+router.put("/update-purchase", )
+
 export default router;

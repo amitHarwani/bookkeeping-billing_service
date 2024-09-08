@@ -1,9 +1,9 @@
 export class RecordPurchaseRequest {
     constructor(
-        public purchaseId: number | null,
-        public itemsPurchased: Array<{
+        public purchaseId: number,
+        public companyId: number,
+        public items: Array<{
             itemId: number;
-            companyId: number;
             unitsPurchased: number;
             pricePerUnit: number;
         }>

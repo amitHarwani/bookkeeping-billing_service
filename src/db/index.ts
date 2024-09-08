@@ -12,3 +12,5 @@ export type User = InferSelectModel<typeof schema.users>;
 export type ThirdParty = InferSelectModel<typeof schema.thirdParties>;
 export type Purchase = InferSelectModel<typeof schema.purchases>;
 export type PurchaseItem = InferSelectModel<typeof schema.purchaseItems>
+export type Sale = InferSelectModel<typeof schema.sales>;
+export type SaleItem = InferSelectModel<typeof schema.saleItems>;
