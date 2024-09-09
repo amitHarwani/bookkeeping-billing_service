@@ -3,6 +3,7 @@ import {
     addPurchaseValidator,
     getAllPurchasesValidator,
     getPurchaseValidator,
+    updatePurchaseValidator,
 } from "../validators/purchase.validators";
 import { validateInput } from "../validators";
 import { checkAccess } from "../middlewares/auth.middleware";
@@ -10,6 +11,7 @@ import {
     addPurchase,
     getAllPurchases,
     getPurchase,
+    updatePurchase,
 } from "../controllers/purchase.controllers";
 
 const router = Router();
@@ -39,6 +41,12 @@ router.get(
     getPurchase
 );
 
-router.put("/update-purchase", )
+router.put(
+    "/update-purchase",
+    updatePurchaseValidator(),
+    validateInput,
+    checkAccess(13),
+    updatePurchase
+);
 
 export default router;

@@ -35,6 +35,7 @@ import {
     UpdatePurchaseResponse,
 } from "../dto/purchase/update_purchase_dto";
 import { UpdateInventoryHelper } from "../utils/UpdateInventoryHelper";
+import { RecordPurchaseUpdateRequest } from "../dto/item/record_purchase_update_dto";
 
 export const getAllPurchases = asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
@@ -354,6 +355,7 @@ export const updatePurchase = asyncHandler(
                     isFullyPaid: body.isFullyPaid,
                     paymentCompletionDate: body.paymentCompletionDate,
                     receiptNumber: body.receiptNumber,
+                    updatedAt: new Date(),
                 })
                 .where(
                     and(
@@ -365,44 +367,100 @@ export const updatePurchase = asyncHandler(
 
             /* Storing items added, updated or removed separately */
             const itemsAdded: Array<PurchaseItemsRequest> = [];
-            const itemsUpdated: Array<PurchaseItemsRequest> = [];
-            const itemsRemoved: Array<{ itemId: number }> = [];
+            const itemsUpdated: Array<{
+                old: PurchaseItemsRequest;
+                new: PurchaseItemsRequest;
+            }> = [];
+            const itemsRemoved: Array<PurchaseItemsRequest> = [];
 
-            /* To store old an new purchase items as objects for efficency */
-            const oldPurchaseItemsAsObj: { [itemId: number]: PurchaseItem } =
-                {};
-            const updatedPurchaseItemsAsObj: {
+            /* To store old and new purchase items as objects for efficency */
+            const oldPurchaseItemsAsObj: {
                 [itemId: number]: PurchaseItemsRequest;
             } = {};
 
+            const newPurchaseItemsAsObj: {
+                [itemId: number]: PurchaseItemsRequest;
+            } = {};
+
+            /* Old Items */
             for (const item of body.oldItems) {
-                oldPurchaseItemsAsObj[item.itemId] = item;
-            }
-            for (const item of body.items) {
-                updatedPurchaseItemsAsObj[item.itemId] = item;
+                /* Removing createdAt, updatedAt and purchaseId from PurchaseItem type, 
+                and converting string to number, to store as PurchaseItemsRequest type */
+                const { purchaseId, createdAt, updatedAt, ...rest } = item;
+                const oldPurchaseItem: PurchaseItemsRequest = {
+                    ...rest,
+                    unitsPurchased: Number(rest.unitsPurchased),
+                    pricePerUnit: Number(rest.pricePerUnit),
+                    subtotal: Number(rest.subtotal),
+                    tax: Number(rest.tax),
+                    taxPercent: Number(rest.taxPercent),
+                    totalAfterTax: Number(rest.totalAfterTax),
+                };
+                oldPurchaseItemsAsObj[item.itemId] = oldPurchaseItem;
             }
 
+            /* New Items */
+            for (const item of body.items) {
+                newPurchaseItemsAsObj[item.itemId] = item;
+            }
+
+            const recordPurchaseBody: RecordPurchaseRequest = {
+                companyId: body.companyId,
+                purchaseId: body.purchaseId,
+                items: [],
+            };
+            const recordPurchaseUpdateBody: RecordPurchaseUpdateRequest = {
+                companyId: body.companyId,
+                purchaseId: body.purchaseId,
+                items: {
+                    itemsUpdated: [],
+                    itemsRemoved: [],
+                },
+            };
+
             /* For each item in updated list */
-            for (const item in updatedPurchaseItemsAsObj) {
+            for (const item in newPurchaseItemsAsObj) {
                 /* New item */
-                const newItem = updatedPurchaseItemsAsObj[item];
+                const newItem = newPurchaseItemsAsObj[item];
 
                 /* If item does not exist in old list: Its an addition */
                 if (!oldPurchaseItemsAsObj[item]) {
                     itemsAdded.push(newItem);
+
+                    /* Adding to record purchase body */
+                    recordPurchaseBody.items.push({
+                        itemId: newItem.itemId,
+                        pricePerUnit: newItem.pricePerUnit,
+                        unitsPurchased: newItem.unitsPurchased,
+                    });
                 } else {
                     /* old item */
                     const old = oldPurchaseItemsAsObj[item];
                     /* If the fields below are different the item has been updated */
                     if (
                         old.itemName != newItem.itemName ||
-                        Number(old.totalAfterTax) != newItem.totalAfterTax ||
-                        Number(old.unitsPurchased) != newItem.unitsPurchased ||
+                        old.itemId != newItem.itemId ||
                         old.unitName != newItem.unitName ||
-                        Number(old.pricePerUnit) != newItem.pricePerUnit ||
-                        Number(old.tax) != newItem.tax
+                        old.unitsPurchased != newItem.unitsPurchased ||
+                        old.pricePerUnit != newItem.pricePerUnit ||
+                        old.totalAfterTax != newItem.totalAfterTax ||
+                        old.tax != newItem.tax
                     ) {
-                        itemsUpdated.push(newItem);
+                        itemsUpdated.push({ old: old, new: newItem });
+
+                        /* Adding to record purchase update body */
+                        recordPurchaseUpdateBody?.items?.itemsUpdated?.push({
+                            old: {
+                                itemId: old.itemId,
+                                pricePerUnit: old.pricePerUnit,
+                                unitsPurchased: old.unitsPurchased,
+                            },
+                            new: {
+                                itemId: newItem.itemId,
+                                pricePerUnit: newItem.pricePerUnit,
+                                unitsPurchased: newItem.unitsPurchased,
+                            },
+                        });
                     }
                     /* Delete object from old list */
                     delete oldPurchaseItemsAsObj[item];
@@ -412,15 +470,23 @@ export const updatePurchase = asyncHandler(
             /* If items remain in old list, they are removed now, add them to remove list */
             if (Object.keys(oldPurchaseItemsAsObj).length) {
                 for (const item in oldPurchaseItemsAsObj) {
-                    itemsRemoved.push({ itemId: Number(item) });
+                    itemsRemoved.push(oldPurchaseItemsAsObj[item]);
+                    /* Adding to record purchase update body */
+                    recordPurchaseUpdateBody.items.itemsRemoved?.push({
+                        itemId: oldPurchaseItemsAsObj[item].itemId,
+                        pricePerUnit: oldPurchaseItemsAsObj[item].pricePerUnit,
+                        unitsPurchased:
+                            oldPurchaseItemsAsObj[item].unitsPurchased,
+                    });
                 }
             }
 
             let addItemsReq;
             let updateItemsReq;
             let deleteItemsReq;
-            /* Updating in db */
 
+            /* Updating in db */
+            /* Adding Item */
             for (const item of itemsAdded) {
                 addItemsReq = tx
                     .insert(purchaseItems)
@@ -442,35 +508,39 @@ export const updatePurchase = asyncHandler(
                     })
                     .returning();
             }
+            /* Updating Items */
             for (const item of itemsUpdated) {
                 updateItemsReq = tx
                     .update(purchaseItems)
                     .set({
                         purchaseId: body.purchaseId,
-                        itemId: item.itemId,
-                        itemName: item.itemName,
-                        companyId: item.companyId,
-                        unitId: item.unitId,
-                        unitName: item.unitName,
-                        unitsPurchased: item.unitsPurchased.toString(),
-                        pricePerUnit: item.pricePerUnit.toString(),
-                        subtotal: item.subtotal.toFixed(body.decimalRoundTo),
-                        tax: item.tax.toFixed(body.decimalRoundTo),
-                        taxPercent: item.taxPercent.toString(),
-                        totalAfterTax: item.totalAfterTax.toFixed(
+                        itemId: item.new.itemId,
+                        itemName: item.new.itemName,
+                        companyId: item.new.companyId,
+                        unitId: item.new.unitId,
+                        unitName: item.new.unitName,
+                        unitsPurchased: item.new.unitsPurchased.toString(),
+                        pricePerUnit: item.new.pricePerUnit.toString(),
+                        subtotal: item.new.subtotal.toFixed(
                             body.decimalRoundTo
                         ),
+                        tax: item.new.tax.toFixed(body.decimalRoundTo),
+                        taxPercent: item.new.taxPercent.toString(),
+                        totalAfterTax: item.new.totalAfterTax.toFixed(
+                            body.decimalRoundTo
+                        ),
+                        updatedAt: new Date(),
                     })
                     .where(
                         and(
-                            eq(purchaseItems.itemId, item.itemId),
+                            eq(purchaseItems.itemId, item.new.itemId),
                             eq(purchaseItems.purchaseId, body.purchaseId),
                             eq(purchaseItems.companyId, body.companyId)
                         )
                     )
                     .returning();
             }
-
+            /* Removing Items */
             for (const item of itemsRemoved) {
                 deleteItemsReq = tx
                     .delete(purchaseItems)
@@ -497,6 +567,23 @@ export const updatePurchase = asyncHandler(
             }
             if (updatedItemsRes) {
                 updatedItemsListInDb = [...updatedItemsRes];
+            }
+
+            /* Update Inventory helper */
+            const updateInventoryHelper = new UpdateInventoryHelper();
+
+            /* If items were added recordPurchase */
+            if (recordPurchaseBody.items.length) {
+                await updateInventoryHelper.recordPurchase(recordPurchaseBody);
+            }
+            /* If items were updated or removed record purchase update */
+            if (
+                recordPurchaseUpdateBody.items.itemsRemoved?.length ||
+                recordPurchaseUpdateBody.items.itemsUpdated?.length
+            ) {
+                await updateInventoryHelper.recordPurchaseUpdate(
+                    recordPurchaseUpdateBody
+                );
             }
 
             return res.status(200).json(
