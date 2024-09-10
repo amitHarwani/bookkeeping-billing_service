@@ -7,6 +7,7 @@ import { SaleItemsRequest } from "../dto/sale/add_sale_dto";
 import { ApiResponse } from "./ApiResponse";
 import { RecordPurchaseRequest } from "../dto/item/record_purchase_dto";
 import { RecordPurchaseUpdateRequest } from "../dto/item/record_purchase_update_dto";
+import { RecordSaleUpdateRequest } from "../dto/item/record_sale_update_dto";
 
 export class UpdateInventoryHelper {
     constructor() {}
@@ -41,6 +42,19 @@ export class UpdateInventoryHelper {
             await axios.patch(
                 `${process.env.INVENTORY_SERVICE}/${process.env.RECORD_PURCHASE_UPDATE_PATH}`,
                 recordPurchaseUpdateBody
+            );
+        } catch (error) {
+            throw error;
+        }
+    };
+
+    recordSalesUpdate = async (
+        recordSaleUpdateBody: RecordSaleUpdateRequest
+    ) => {
+        try {
+            await axios.patch(
+                `${process.env.INVENTORY_SERVICE}/${process.env.RECORD_SALE_UPDATE_PATH}`,
+                recordSaleUpdateBody
             );
         } catch (error) {
             throw error;

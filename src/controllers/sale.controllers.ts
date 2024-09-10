@@ -13,9 +13,13 @@ import {
 import { NextFunction, Request, Response } from "express";
 import moment from "moment";
 import { DATE_TIME_FORMATS } from "../constants";
-import { db, SaleItem } from "../db";
+import { db, Sale, SaleItem } from "../db";
 import { RecordSaleRequest } from "../dto/item/record_sale_dto";
-import { AddSaleRequest, AddSaleResponse } from "../dto/sale/add_sale_dto";
+import {
+    AddSaleRequest,
+    AddSaleResponse,
+    SaleItemsRequest,
+} from "../dto/sale/add_sale_dto";
 import {
     GetAllSalesRequest,
     GetAllSalesResponse,
@@ -25,6 +29,11 @@ import { ApiError } from "../utils/ApiError";
 import { ApiResponse } from "../utils/ApiResponse";
 import asyncHandler from "../utils/async_handler";
 import { UpdateInventoryHelper } from "../utils/UpdateInventoryHelper";
+import {
+    UpdateSaleRequest,
+    UpdateSaleResponse,
+} from "../dto/sale/update_sale_dto";
+import { RecordSaleUpdateRequest } from "../dto/item/record_sale_update_dto";
 
 export const getAllSales = asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
@@ -315,6 +324,292 @@ export const addSale = asyncHandler(
                 new ApiResponse<AddSaleResponse>(200, {
                     sale: saleAdded[0],
                     saleItems: saleItemsAdded,
+                })
+            );
+        });
+    }
+);
+
+export const updateSale = asyncHandler(
+    async (req: Request, res: Response, next: NextFunction) => {
+        const body = req.body as UpdateSaleRequest;
+
+        await db.transaction(async (tx) => {
+            /* Updating in sales table */
+            const saleUpdated = await tx
+                .update(sales)
+                .set({
+                    invoiceNumber: body.invoiceNumber as number,
+                    companyId: body.companyId,
+                    partyId: body.partyId,
+                    partyName: body.partyName,
+                    isNoPartyBill: body.isNoPartyBill,
+                    doneBy: body.doneBy,
+                    subtotal: body.subtotal.toFixed(body.decimalRoundTo),
+                    discount: body.discount.toString(),
+                    totalAfterDiscount: body.totalAfterDiscount.toFixed(
+                        body.decimalRoundTo
+                    ),
+                    tax: body.tax.toFixed(body.decimalRoundTo),
+                    taxPercent: body.taxPercent.toString(),
+                    taxName: body.taxName,
+                    totalAfterTax: body.totalAfterTax.toFixed(
+                        body.decimalRoundTo
+                    ),
+                    isCredit: body.isCredit,
+                    paymentDueDate: body.paymentDueDate
+                        ? moment
+                              .utc(
+                                  body.paymentDueDate,
+                                  DATE_TIME_FORMATS.dateTimeFormat24hr
+                              )
+                              .toDate()
+                        : null,
+                    amountPaid: body.amountPaid.toString(),
+                    amountDue: body.amountDue.toString(),
+                    isFullyPaid: body.isFullyPaid,
+                    paymentCompletionDate: body.paymentCompletionDate
+                        ? moment
+                              .utc(
+                                  body.paymentCompletionDate,
+                                  DATE_TIME_FORMATS.dateTimeFormat24hr
+                              )
+                              .toDate()
+                        : null,
+                })
+                .where(
+                    and(
+                        eq(sales.saleId, body.saleId),
+                        eq(sales.companyId, body.companyId)
+                    )
+                )
+                .returning();
+
+            /* Storing items added, updated or removed separately */
+            const itemsAdded: Array<SaleItemsRequest> = [];
+            const itemsUpdated: Array<{
+                old: SaleItemsRequest;
+                new: SaleItemsRequest;
+            }> = [];
+            const itemsRemoved: Array<SaleItemsRequest> = [];
+
+            /* To store old and new sale items as objects for efficency */
+            const oldSaleItemsAsObj: {
+                [itemId: number]: SaleItemsRequest;
+            } = {};
+
+            const newSaleItemsAsObj: {
+                [itemId: number]: SaleItemsRequest;
+            } = {};
+
+            /* Old Items */
+            for (const item of body.oldItems) {
+                /* Removing createdAt, updatedAt and saleId from SaleItem type, 
+                and converting string to number, to store as SaleItemsRequest type */
+                const { saleId, createdAt, updatedAt, ...rest } = item;
+                const oldSaleItem: SaleItemsRequest = {
+                    ...rest,
+                    unitsSold: Number(rest.unitsSold),
+                    pricePerUnit: Number(rest.pricePerUnit),
+                    subtotal: Number(rest.subtotal),
+                    tax: Number(rest.tax),
+                    taxPercent: Number(rest.taxPercent),
+                    totalAfterTax: Number(rest.totalAfterTax),
+                };
+                oldSaleItemsAsObj[item.itemId] = oldSaleItem;
+            }
+
+            /* New Items */
+            for (const item of body.items) {
+                newSaleItemsAsObj[item.itemId] = item;
+            }
+
+            const recordSaleBody: RecordSaleRequest = {
+                companyId: body.companyId,
+                saleId: body.saleId,
+                items: [],
+            };
+            const recordSaleUpdateBody: RecordSaleUpdateRequest = {
+                companyId: body.companyId,
+                saleId: body.saleId,
+                items: {
+                    itemsUpdated: [],
+                    itemsRemoved: [],
+                },
+            };
+
+            /* For each item in updated list */
+            for (const item in newSaleItemsAsObj) {
+                /* New item */
+                const newItem = newSaleItemsAsObj[item];
+
+                /* If item does not exist in old list: Its an addition */
+                if (!oldSaleItemsAsObj[item]) {
+                    itemsAdded.push(newItem);
+
+                    /* Adding to record sale body */
+                    recordSaleBody.items.push({
+                        itemId: newItem.itemId,
+                        sellingPricePerUnit: newItem.pricePerUnit,
+                        unitsSold: newItem.unitsSold,
+                    });
+                } else {
+                    /* old item */
+                    const old = oldSaleItemsAsObj[item];
+                    /* If the fields below are different the item has been updated */
+                    if (
+                        old.itemName != newItem.itemName ||
+                        old.itemId != newItem.itemId ||
+                        old.unitName != newItem.unitName ||
+                        old.unitsSold != newItem.unitsSold ||
+                        old.pricePerUnit != newItem.pricePerUnit ||
+                        old.totalAfterTax != newItem.totalAfterTax ||
+                        old.tax != newItem.tax
+                    ) {
+                        itemsUpdated.push({ old: old, new: newItem });
+
+                        /* Adding to record sale update body */
+                        recordSaleUpdateBody?.items?.itemsUpdated?.push({
+                            old: {
+                                itemId: old.itemId,
+                                sellingPricePerUnit: old.pricePerUnit,
+                                unitsSold: old.unitsSold,
+                            },
+                            new: {
+                                itemId: newItem.itemId,
+                                sellingPricePerUnit: newItem.pricePerUnit,
+                                unitsSold: newItem.unitsSold,
+                            },
+                        });
+                    }
+                    /* Delete object from old list */
+                    delete oldSaleItemsAsObj[item];
+                }
+            }
+
+            /* If items remain in old list, they are removed now, add them to remove list */
+            if (Object.keys(oldSaleItemsAsObj).length) {
+                for (const item in oldSaleItemsAsObj) {
+                    itemsRemoved.push(oldSaleItemsAsObj[item]);
+                    /* Adding to record sale update body */
+                    recordSaleUpdateBody.items.itemsRemoved?.push({
+                        itemId: oldSaleItemsAsObj[item].itemId,
+                        sellingPricePerUnit:
+                            oldSaleItemsAsObj[item].pricePerUnit,
+                        unitsSold: oldSaleItemsAsObj[item].unitsSold,
+                    });
+                }
+            }
+
+            let addItemsReq;
+            let updateItemsReq;
+            let deleteItemsReq;
+
+            /* Updating in db */
+            /* Adding Item */
+            for (const item of itemsAdded) {
+                addItemsReq = tx
+                    .insert(saleItems)
+                    .values({
+                        saleId: body.saleId,
+                        itemId: item.itemId,
+                        itemName: item.itemName,
+                        companyId: item.companyId,
+                        unitId: item.unitId,
+                        unitName: item.unitName,
+                        unitsSold: item.unitsSold.toString(),
+                        pricePerUnit: item.pricePerUnit.toString(),
+                        subtotal: item.subtotal.toFixed(body.decimalRoundTo),
+                        tax: item.tax.toFixed(body.decimalRoundTo),
+                        taxPercent: item.taxPercent.toString(),
+                        totalAfterTax: item.totalAfterTax.toFixed(
+                            body.decimalRoundTo
+                        ),
+                    })
+                    .returning();
+            }
+            /* Updating Items */
+            for (const item of itemsUpdated) {
+                updateItemsReq = tx
+                    .update(saleItems)
+                    .set({
+                        saleId: body.saleId,
+                        itemId: item.new.itemId,
+                        itemName: item.new.itemName,
+                        companyId: item.new.companyId,
+                        unitId: item.new.unitId,
+                        unitName: item.new.unitName,
+                        unitsSold: item.new.unitsSold.toString(),
+                        pricePerUnit: item.new.pricePerUnit.toString(),
+                        subtotal: item.new.subtotal.toFixed(
+                            body.decimalRoundTo
+                        ),
+                        tax: item.new.tax.toFixed(body.decimalRoundTo),
+                        taxPercent: item.new.taxPercent.toString(),
+                        totalAfterTax: item.new.totalAfterTax.toFixed(
+                            body.decimalRoundTo
+                        ),
+                    })
+                    .where(
+                        and(
+                            eq(saleItems.itemId, item.new.itemId),
+                            eq(saleItems.saleId, body.saleId),
+                            eq(saleItems.companyId, body.companyId)
+                        )
+                    )
+                    .returning();
+            }
+            /* Removing Items */
+            for (const item of itemsRemoved) {
+                deleteItemsReq = tx
+                    .delete(saleItems)
+                    .where(
+                        and(
+                            eq(saleItems.itemId, item.itemId),
+                            eq(saleItems.saleId, body.saleId),
+                            eq(saleItems.companyId, body.companyId)
+                        )
+                    );
+            }
+
+            /* Parallel calls */
+            const [addItemsRes, updatedItemsRes] = await Promise.all([
+                addItemsReq,
+                updateItemsReq,
+                deleteItemsReq,
+            ]);
+
+            /* Final list of purchase items */
+            let updatedItemsListInDb: Array<SaleItem> = [];
+            if (addItemsRes) {
+                updatedItemsListInDb = [...addItemsRes];
+            }
+            if (updatedItemsRes) {
+                updatedItemsListInDb = [...updatedItemsRes];
+            }
+
+            /* Update Inventory helper */
+            const updateInventoryHelper = new UpdateInventoryHelper();
+
+            /* If items were added recordSales */
+            if (recordSaleBody.items.length) {
+                await updateInventoryHelper.recordSales(recordSaleBody);
+            }
+            /* If items were updated or removed record sale update */
+            if (
+                recordSaleUpdateBody.items.itemsRemoved?.length ||
+                recordSaleUpdateBody.items.itemsUpdated?.length
+            ) {
+                await updateInventoryHelper.recordSalesUpdate(
+                    recordSaleUpdateBody
+                );
+            }
+
+            return res.status(200).json(
+                new ApiResponse<UpdateSaleResponse>(200, {
+                    sale: saleUpdated[0],
+                    saleItems: updatedItemsListInDb,
+                    message: "sale updated successfully",
                 })
             );
         });

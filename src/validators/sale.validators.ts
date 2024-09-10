@@ -121,3 +121,76 @@ export const addSaleValidator = () => {
         body("items").isArray().withMessage("invalid items field"),
     ];
 };
+
+export const updateSaleValidator = () => {
+    return [
+        body("saleId").isInt().withMessage("invalid sale id"),
+        body("invoiceNumber").isInt().withMessage("invalid invoice number").optional({values: "null"}),
+        body("companyId").isInt().withMessage("invalid company id"),
+        body("partyId")
+            .isInt()
+            .optional({ values: "null" })
+            .withMessage("invalid party id"),
+        body("partyName")
+            .isString()
+            .trim()
+            .notEmpty()
+            .withMessage("partyName is required")
+            .escape()
+            .optional({ values: "null" }),
+        body("isNoPartyBill")
+            .isBoolean()
+            .withMessage("invalid is noPartyBill field"),
+        body("doneBy")
+            .isString()
+            .trim()
+            .notEmpty()
+            .withMessage("invalid doneBy field")
+            .escape(),
+        body("subtotal").isNumeric().withMessage("invalid subtotal"),
+        body("discount").isNumeric().withMessage("invalid discount"),
+        body("totalAfterDiscount")
+            .isNumeric()
+            .withMessage("invalid total after discount"),
+        body("tax").isNumeric().withMessage("invalid total after tax"),
+        body("taxPercent").isNumeric().withMessage("invalid tax percentage"),
+        body("taxName")
+            .isString()
+            .trim()
+            .withMessage("invalid tax name")
+            .escape(),
+        body("totalAfterTax")
+            .isNumeric()
+            .withMessage("invalid total after tax"),
+        body("isCredit").isBoolean().withMessage("invalid is credit field"),
+        body("paymentDueDate").custom((value) => {
+            if (
+                value == null ||
+                (typeof value === "string" && REGEX.dateWithTime.test(value))
+            ) {
+                return true;
+            }
+            throw new Error("invalid payment due date time");
+        }),
+        body("amountPaid").isNumeric().withMessage("invalid amount paid"),
+        body("amountDue").isNumeric().withMessage("invalid amount due"),
+        body("isFullyPaid")
+            .isBoolean()
+            .withMessage("invalid is fully paid field"),
+        body("paymentCompletionDate").custom((value) => {
+            if (
+                value == null ||
+                (typeof value === "string" && REGEX.dateWithTime.test(value))
+            ) {
+                return true;
+            }
+            throw new Error("invalid payment completion date");
+        }),
+        body("decimalRoundTo")
+            .isInt()
+            .withMessage("invalid decimal round to field"),
+        body("oldItems").isArray().withMessage("invalid oldItems field"),
+        body("items").isArray().withMessage("invalid items field"),
+    ];
+};
+
