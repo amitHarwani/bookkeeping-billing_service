@@ -15,10 +15,7 @@ import moment from "moment";
 import { DATE_TIME_FORMATS } from "../constants";
 import { db, SaleItem } from "../db";
 import { RecordSaleRequest } from "../dto/item/record_sale_dto";
-import {
-    AddSaleRequest,
-    AddSaleResponse
-} from "../dto/sale/add_sale_dto";
+import { AddSaleRequest, AddSaleResponse } from "../dto/sale/add_sale_dto";
 import {
     GetAllSalesRequest,
     GetAllSalesResponse,
@@ -246,11 +243,25 @@ export const addSale = asyncHandler(
                         body.decimalRoundTo
                     ),
                     isCredit: body.isCredit,
-                    paymentDueDate: body.paymentDueDate,
+                    paymentDueDate: body.paymentDueDate
+                        ? moment
+                              .utc(
+                                  body.paymentDueDate,
+                                  DATE_TIME_FORMATS.dateTimeFormat24hr
+                              )
+                              .toDate()
+                        : null,
                     amountPaid: body.amountPaid.toString(),
                     amountDue: body.amountDue.toString(),
                     isFullyPaid: body.isFullyPaid,
-                    paymentCompletionDate: body.paymentCompletionDate,
+                    paymentCompletionDate: body.paymentCompletionDate
+                        ? moment
+                              .utc(
+                                  body.paymentCompletionDate,
+                                  DATE_TIME_FORMATS.dateTimeFormat24hr
+                              )
+                              .toDate()
+                        : null,
                 })
                 .returning();
 

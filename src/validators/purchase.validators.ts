@@ -74,7 +74,7 @@ export const addPurchaseValidator = () => {
         body("paymentDueDate").custom((value) => {
             if (
                 value == null ||
-                (typeof value === "string" && REGEX.date.test(value))
+                (typeof value === "string" && REGEX.dateWithTime.test(value))
             ) {
                 return true;
             }
@@ -88,7 +88,7 @@ export const addPurchaseValidator = () => {
         body("paymentCompletionDate").custom((value) => {
             if (
                 value == null ||
-                (typeof value === "string" && REGEX.date.test(value))
+                (typeof value === "string" && REGEX.dateWithTime.test(value))
             ) {
                 return true;
             }
@@ -138,7 +138,7 @@ export const updatePurchaseValidator = () => {
         body("paymentDueDate").custom((value) => {
             if (
                 value == null ||
-                (typeof value === "string" && REGEX.date.test(value))
+                (typeof value === "string" && REGEX.dateWithTime.test(value))
             ) {
                 return true;
             }
@@ -152,7 +152,7 @@ export const updatePurchaseValidator = () => {
         body("paymentCompletionDate").custom((value) => {
             if (
                 value == null ||
-                (typeof value === "string" && REGEX.date.test(value))
+                (typeof value === "string" && REGEX.dateWithTime.test(value))
             ) {
                 return true;
             }

@@ -95,7 +95,7 @@ export const addSaleValidator = () => {
         body("paymentDueDate").custom((value) => {
             if (
                 value == null ||
-                (typeof value === "string" && REGEX.date.test(value))
+                (typeof value === "string" && REGEX.dateWithTime.test(value))
             ) {
                 return true;
             }
@@ -109,7 +109,7 @@ export const addSaleValidator = () => {
         body("paymentCompletionDate").custom((value) => {
             if (
                 value == null ||
-                (typeof value === "string" && REGEX.date.test(value))
+                (typeof value === "string" && REGEX.dateWithTime.test(value))
             ) {
                 return true;
             }
