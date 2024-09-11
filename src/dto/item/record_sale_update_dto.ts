@@ -14,6 +14,6 @@ export class RecordSaleUpdateRequest {
     ) {}
 }
 
-export class RecordPurchaseUpdateResponse {
+export class RecordSaleUpdateResponse {
     constructor(public message: string) {}
 }
