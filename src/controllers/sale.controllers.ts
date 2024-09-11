@@ -1,4 +1,4 @@
-import { saleItems, sales } from "db_service";
+import { quotations, saleItems, sales } from "db_service";
 import {
     and,
     asc,
@@ -274,6 +274,18 @@ export const addSale = asyncHandler(
                 })
                 .returning();
 
+            /* If quotation number is passed mark the quotation as completed, by setting the saleInvoiceNumber */
+            if (body.quotationNumber) {
+                await tx
+                    .update(quotations)
+                    .set({ saleInvoiceNumber: saleAdded[0].invoiceNumber })
+                    .where(
+                        and(
+                            eq(quotations.companyId, body.companyId),
+                            eq(quotations.quotationNumber, body.quotationNumber)
+                        )
+                    );
+            }
             /* Adding  items to saleItems table */
             let saleItemsAdded: SaleItem[] = [];
 
@@ -376,6 +388,7 @@ export const updateSale = asyncHandler(
                               )
                               .toDate()
                         : null,
+                    updatedAt: new Date(),
                 })
                 .where(
                     and(
@@ -549,6 +562,7 @@ export const updateSale = asyncHandler(
                         totalAfterTax: item.new.totalAfterTax.toFixed(
                             body.decimalRoundTo
                         ),
+                        updatedAt: new Date(),
                     })
                     .where(
                         and(

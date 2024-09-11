@@ -55,6 +55,7 @@ export const getSaleValidator = () => {
 export const addSaleValidator = () => {
     return [
         body("invoiceNumber").isInt().withMessage("invalid invoice number").optional({values: "null"}),
+        body("quotationNumber").isInt().withMessage("invalid quotation number").optional({values: "null"}),
         body("companyId").isInt().withMessage("invalid company id"),
         body("partyId")
             .isInt()
