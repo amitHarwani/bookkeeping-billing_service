@@ -46,6 +46,14 @@ export const getAllPurchasesValidator = () => {
 };
 export const addPurchaseValidator = () => {
     return [
+        body("createdAt").custom((value) => {
+            if (
+                (typeof value === "string" && REGEX.dateWithTime.test(value))
+            ) {
+                return true;
+            }
+            throw new Error("invalid createdAt date");
+        }),
         body("invoiceNumber").isInt().withMessage("invalid invoice number"),
         body("companyId").isInt().withMessage("invalid company id"),
         body("partyId").isInt().withMessage("invalid party id"),

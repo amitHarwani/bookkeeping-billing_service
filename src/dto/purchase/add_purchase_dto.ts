@@ -16,6 +16,7 @@ export interface PurchaseItemsRequest {
 
 export class AddPurchaseRequest {
     constructor(
+        public createdAt: string,
         public invoiceNumber: number,
         public companyId: number,
         public partyId: number,
