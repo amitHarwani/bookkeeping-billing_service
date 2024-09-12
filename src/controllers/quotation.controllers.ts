@@ -385,14 +385,14 @@ export const updateQuotation = asyncHandler(
                 }
             }
 
-            let addItemsReq;
-            let updateItemsReq;
-            let deleteItemsReq;
+            let addItemsReq = [];
+            let updateItemsReq = [];
+            let deleteItemsReq = [];
 
             /* Updating in db */
             /* Adding Item */
             for (const item of itemsAdded) {
-                addItemsReq = tx
+                addItemsReq.push(tx
                     .insert(quotationItems)
                     .values({
                         quotationId: body.quotationId,
@@ -410,11 +410,11 @@ export const updateQuotation = asyncHandler(
                             body.decimalRoundTo
                         ),
                     })
-                    .returning();
+                    .returning());
             }
             /* Updating Items */
             for (const item of itemsUpdated) {
-                updateItemsReq = tx
+                updateItemsReq.push(tx
                     .update(quotationItems)
                     .set({
                         quotationId: body.quotationId,
@@ -442,11 +442,11 @@ export const updateQuotation = asyncHandler(
                             eq(quotationItems.companyId, body.companyId)
                         )
                     )
-                    .returning();
+                    .returning());
             }
             /* Removing Items */
             for (const item of itemsRemoved) {
-                deleteItemsReq = tx
+                deleteItemsReq.push(tx
                     .delete(quotationItems)
                     .where(
                         and(
@@ -454,14 +454,14 @@ export const updateQuotation = asyncHandler(
                             eq(quotationItems.quotationId, body.quotationId),
                             eq(quotationItems.companyId, body.companyId)
                         )
-                    );
+                    ));
             }
 
             /* Parallel calls */
             const [addItemsRes, updatedItemsRes] = await Promise.all([
-                addItemsReq,
-                updateItemsReq,
-                deleteItemsReq,
+                ...addItemsReq,
+                ...updateItemsReq,
+                ...deleteItemsReq,
             ]);
 
             /* Final list of quotation items */

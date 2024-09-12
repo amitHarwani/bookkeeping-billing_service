@@ -515,14 +515,14 @@ export const updatePurchase = asyncHandler(
                 }
             }
 
-            let addItemsReq;
-            let updateItemsReq;
-            let deleteItemsReq;
+            let addItemsReq = [];
+            let updateItemsReq = [];
+            let deleteItemsReq = [];
 
             /* Updating in db */
             /* Adding Item */
             for (const item of itemsAdded) {
-                addItemsReq = tx
+                addItemsReq.push(tx
                     .insert(purchaseItems)
                     .values({
                         purchaseId: body.purchaseId,
@@ -540,11 +540,11 @@ export const updatePurchase = asyncHandler(
                             body.decimalRoundTo
                         ),
                     })
-                    .returning();
+                    .returning());
             }
             /* Updating Items */
             for (const item of itemsUpdated) {
-                updateItemsReq = tx
+                updateItemsReq.push(tx
                     .update(purchaseItems)
                     .set({
                         purchaseId: body.purchaseId,
@@ -572,11 +572,11 @@ export const updatePurchase = asyncHandler(
                             eq(purchaseItems.companyId, body.companyId)
                         )
                     )
-                    .returning();
+                    .returning());
             }
             /* Removing Items */
             for (const item of itemsRemoved) {
-                deleteItemsReq = tx
+                deleteItemsReq.push(tx
                     .delete(purchaseItems)
                     .where(
                         and(
@@ -584,14 +584,14 @@ export const updatePurchase = asyncHandler(
                             eq(purchaseItems.purchaseId, body.purchaseId),
                             eq(purchaseItems.companyId, body.companyId)
                         )
-                    );
+                    ));
             }
 
             /* Parallel calls */
             const [addItemsRes, updatedItemsRes] = await Promise.all([
-                addItemsReq,
-                updateItemsReq,
-                deleteItemsReq,
+                ...addItemsReq,
+                ...updateItemsReq,
+                ...deleteItemsReq,
             ]);
 
             /* Final list of purchase items */
