@@ -234,6 +234,12 @@ export const addSale = asyncHandler(
             const saleAdded = await tx
                 .insert(sales)
                 .values({
+                    createdAt: moment
+                        .utc(
+                            body.createdAt,
+                            DATE_TIME_FORMATS.dateTimeFormat24hr
+                        )
+                        .toDate(),
                     invoiceNumber: body.invoiceNumber as number,
                     companyId: body.companyId,
                     partyId: body.partyId,

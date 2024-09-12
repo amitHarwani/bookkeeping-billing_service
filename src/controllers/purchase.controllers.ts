@@ -199,7 +199,12 @@ export const addPurchase = asyncHandler(
             const purchaseAdded = await tx
                 .insert(purchases)
                 .values({
-                    createdAt: moment.utc(body.createdAt).toDate(),
+                    createdAt: moment
+                        .utc(
+                            body.createdAt,
+                            DATE_TIME_FORMATS.dateTimeFormat24hr
+                        )
+                        .toDate(),
                     invoiceNumber: body.invoiceNumber,
                     companyId: body.companyId,
                     partyId: body.partyId,

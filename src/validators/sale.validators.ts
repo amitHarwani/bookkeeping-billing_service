@@ -54,6 +54,14 @@ export const getSaleValidator = () => {
 
 export const addSaleValidator = () => {
     return [
+        body("createdAt").custom((value) => {
+            if (
+                (typeof value === "string" && REGEX.dateWithTime.test(value))
+            ) {
+                return true;
+            }
+            throw new Error("invalid createdAt date");
+        }),
         body("invoiceNumber").isInt().withMessage("invalid invoice number").optional({values: "null"}),
         body("quotationNumber").isInt().withMessage("invalid quotation number").optional({values: "null"}),
         body("companyId").isInt().withMessage("invalid company id"),

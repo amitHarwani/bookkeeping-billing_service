@@ -17,6 +17,7 @@ export interface SaleItemsRequest {
 
 export class AddSaleRequest {
     constructor(
+        public createdAt: string,
         public invoiceNumber: number | null,
         public quotationNumber: number | null,
         public companyId: number,
