@@ -90,7 +90,7 @@ export const getAllPurchases = asyncHandler(
             }
             /* Querying for overdue payments */
             if (body?.query?.getOnlyOverduePayments) {
-                overduePaymentsQuery = sql`${purchases.paymentDueDate} > ${moment.utc().format(DATE_TIME_FORMATS.dateFormat)}`;
+                overduePaymentsQuery = sql`${purchases.paymentDueDate} <= ${moment.utc().format(DATE_TIME_FORMATS.dateFormat)}`;
             }
             if (
                 body?.query?.invoiceNumberSearchQuery &&
