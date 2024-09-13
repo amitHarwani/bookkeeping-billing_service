@@ -284,7 +284,7 @@ export const addSale = asyncHandler(
             if (body.quotationNumber) {
                 await tx
                     .update(quotations)
-                    .set({ saleInvoiceNumber: saleAdded[0].invoiceNumber })
+                    .set({ saleId: saleAdded[0].saleId })
                     .where(
                         and(
                             eq(quotations.companyId, body.companyId),
