@@ -42,6 +42,7 @@ app.use("/quotation", QuotationRouter);
 
 
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+    logger.error(JSON.stringify(err));
     if (err instanceof PostgresError) {
         return res.status(500).json({
             stausCode: 500,
