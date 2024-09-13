@@ -16,6 +16,7 @@ export interface QuotationItemsRequest {
 
 export class AddQuotationRequest {
     constructor(
+        public createdAt: string,
         public quotationNumber: number | null,
         public companyId: number,
         public partyId: number,

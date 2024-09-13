@@ -27,7 +27,10 @@ import {
     QuotationItemsRequest,
 } from "../dto/quotation/add_quotation_dto";
 import { GetQuotationResponse } from "../dto/quotation/get_quotation_dto";
-import { UpdateQuotationRequest, UpdateQuotationResponse } from "../dto/quotation/update_quotation_dto";
+import {
+    UpdateQuotationRequest,
+    UpdateQuotationResponse,
+} from "../dto/quotation/update_quotation_dto";
 
 export const getAllQuotations = asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
@@ -175,6 +178,12 @@ export const addQuotation = asyncHandler(
             const quotationAdded = await tx
                 .insert(quotations)
                 .values({
+                    createdAt: moment
+                        .utc(
+                            body.createdAt,
+                            DATE_TIME_FORMATS.dateTimeFormat24hr
+                        )
+                        .toDate(),
                     quotationNumber: body.quotationNumber as number,
                     companyId: body.companyId,
                     partyId: body.partyId,
@@ -256,8 +265,8 @@ export const getQuotation = asyncHandler(
             .from(quotationItems)
             .where(
                 and(
-                    eq(quotations.quotationId, quotationId),
-                    eq(quotations.companyId, companyId)
+                    eq(quotationItems.quotationId, quotationId),
+                    eq(quotationItems.companyId, companyId)
                 )
             );
 
@@ -392,69 +401,83 @@ export const updateQuotation = asyncHandler(
             /* Updating in db */
             /* Adding Item */
             for (const item of itemsAdded) {
-                addItemsReq.push(tx
-                    .insert(quotationItems)
-                    .values({
-                        quotationId: body.quotationId,
-                        itemId: item.itemId,
-                        itemName: item.itemName,
-                        companyId: item.companyId,
-                        unitId: item.unitId,
-                        unitName: item.unitName,
-                        unitsSold: item.unitsSold.toString(),
-                        pricePerUnit: item.pricePerUnit.toString(),
-                        subtotal: item.subtotal.toFixed(body.decimalRoundTo),
-                        tax: item.tax.toFixed(body.decimalRoundTo),
-                        taxPercent: item.taxPercent.toString(),
-                        totalAfterTax: item.totalAfterTax.toFixed(
-                            body.decimalRoundTo
-                        ),
-                    })
-                    .returning());
+                addItemsReq.push(
+                    tx
+                        .insert(quotationItems)
+                        .values({
+                            quotationId: body.quotationId,
+                            itemId: item.itemId,
+                            itemName: item.itemName,
+                            companyId: item.companyId,
+                            unitId: item.unitId,
+                            unitName: item.unitName,
+                            unitsSold: item.unitsSold.toString(),
+                            pricePerUnit: item.pricePerUnit.toString(),
+                            subtotal: item.subtotal.toFixed(
+                                body.decimalRoundTo
+                            ),
+                            tax: item.tax.toFixed(body.decimalRoundTo),
+                            taxPercent: item.taxPercent.toString(),
+                            totalAfterTax: item.totalAfterTax.toFixed(
+                                body.decimalRoundTo
+                            ),
+                        })
+                        .returning()
+                );
             }
             /* Updating Items */
             for (const item of itemsUpdated) {
-                updateItemsReq.push(tx
-                    .update(quotationItems)
-                    .set({
-                        quotationId: body.quotationId,
-                        itemId: item.new.itemId,
-                        itemName: item.new.itemName,
-                        companyId: item.new.companyId,
-                        unitId: item.new.unitId,
-                        unitName: item.new.unitName,
-                        unitsSold: item.new.unitsSold.toString(),
-                        pricePerUnit: item.new.pricePerUnit.toString(),
-                        subtotal: item.new.subtotal.toFixed(
-                            body.decimalRoundTo
-                        ),
-                        tax: item.new.tax.toFixed(body.decimalRoundTo),
-                        taxPercent: item.new.taxPercent.toString(),
-                        totalAfterTax: item.new.totalAfterTax.toFixed(
-                            body.decimalRoundTo
-                        ),
-                        updatedAt: new Date(),
-                    })
-                    .where(
-                        and(
-                            eq(quotationItems.itemId, item.new.itemId),
-                            eq(quotationItems.quotationId, body.quotationId),
-                            eq(quotationItems.companyId, body.companyId)
+                updateItemsReq.push(
+                    tx
+                        .update(quotationItems)
+                        .set({
+                            quotationId: body.quotationId,
+                            itemId: item.new.itemId,
+                            itemName: item.new.itemName,
+                            companyId: item.new.companyId,
+                            unitId: item.new.unitId,
+                            unitName: item.new.unitName,
+                            unitsSold: item.new.unitsSold.toString(),
+                            pricePerUnit: item.new.pricePerUnit.toString(),
+                            subtotal: item.new.subtotal.toFixed(
+                                body.decimalRoundTo
+                            ),
+                            tax: item.new.tax.toFixed(body.decimalRoundTo),
+                            taxPercent: item.new.taxPercent.toString(),
+                            totalAfterTax: item.new.totalAfterTax.toFixed(
+                                body.decimalRoundTo
+                            ),
+                            updatedAt: new Date(),
+                        })
+                        .where(
+                            and(
+                                eq(quotationItems.itemId, item.new.itemId),
+                                eq(
+                                    quotationItems.quotationId,
+                                    body.quotationId
+                                ),
+                                eq(quotationItems.companyId, body.companyId)
+                            )
                         )
-                    )
-                    .returning());
+                        .returning()
+                );
             }
             /* Removing Items */
             for (const item of itemsRemoved) {
-                deleteItemsReq.push(tx
-                    .delete(quotationItems)
-                    .where(
-                        and(
-                            eq(quotationItems.itemId, item.itemId),
-                            eq(quotationItems.quotationId, body.quotationId),
-                            eq(quotationItems.companyId, body.companyId)
+                deleteItemsReq.push(
+                    tx
+                        .delete(quotationItems)
+                        .where(
+                            and(
+                                eq(quotationItems.itemId, item.itemId),
+                                eq(
+                                    quotationItems.quotationId,
+                                    body.quotationId
+                                ),
+                                eq(quotationItems.companyId, body.companyId)
+                            )
                         )
-                    ));
+                );
             }
 
             /* Parallel calls */

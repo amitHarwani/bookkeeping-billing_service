@@ -38,6 +38,12 @@ export const getAllQuotationsValidator = () => {
 
 export const addQuotationValidator = () => {
     return [
+        body("createdAt").custom((value) => {
+            if (typeof value === "string" && REGEX.dateWithTime.test(value)) {
+                return true;
+            }
+            throw new Error("invalid createdAt date");
+        }),
         body("quotationNumber")
             .isInt()
             .withMessage("invalid quotation number")
