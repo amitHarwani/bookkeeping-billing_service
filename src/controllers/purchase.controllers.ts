@@ -6,7 +6,13 @@ import {
     PurchaseItemsRequest,
 } from "../dto/purchase/add_purchase_dto";
 import { db, PurchaseItem } from "../db";
-import { items, purchaseItems, purchases, saleItems } from "db_service";
+import {
+    cashInOut,
+    items,
+    purchaseItems,
+    purchases,
+    saleItems,
+} from "db_service";
 import { ApiResponse } from "../utils/ApiResponse";
 import {
     GetAllPurchasesRequest,
@@ -90,7 +96,10 @@ export const getAllPurchases = asyncHandler(
             }
             /* Querying for overdue payments */
             if (body?.query?.getOnlyOverduePayments) {
-                overduePaymentsQuery = sql`${purchases.paymentDueDate} <= ${moment.utc().format(DATE_TIME_FORMATS.dateFormat)}`;
+                overduePaymentsQuery = and(
+                    eq(purchases.isFullyPaid, false),
+                    sql`${purchases.paymentDueDate} <= ${moment.utc().format(DATE_TIME_FORMATS.dateFormat)}`
+                );
             }
             if (
                 body?.query?.invoiceNumberSearchQuery &&
@@ -244,6 +253,21 @@ export const addPurchase = asyncHandler(
                 })
                 .returning();
 
+            /* If amount paid is not 0, add to cash in out table */
+            if (body.amountPaid) {
+                await tx.insert(cashInOut).values({
+                    transactionDateTime: moment
+                        .utc(
+                            body.createdAt,
+                            DATE_TIME_FORMATS.dateTimeFormat24hr
+                        )
+                        .toDate(),
+                    companyId: body.companyId,
+                    cashOut: body.amountPaid.toString(),
+                    purchaseId: purchaseAdded[0].purchaseId,
+                });
+            }
+
             let updateInventoryBody: RecordPurchaseRequest = {
                 purchaseId: purchaseAdded[0].purchaseId,
                 companyId: body.companyId,
@@ -350,7 +374,7 @@ export const updatePurchase = asyncHandler(
 
         await db.transaction(async (tx) => {
             /* Updating in purchase table */
-            const purchaseUpdated = await tx
+            const updatePurchaseDBRequest = tx
                 .update(purchases)
                 .set({
                     invoiceNumber: body.invoiceNumber,
@@ -398,6 +422,24 @@ export const updatePurchase = asyncHandler(
                     )
                 )
                 .returning();
+
+            /* Adding to cash in out table, the difference of current amount paid - old amount paid */
+            let addToCashInOutDBRequest;
+
+            if (body.amountPaid != body.oldAmountPaid) {
+                addToCashInOutDBRequest = tx.insert(cashInOut).values({
+                    transactionDateTime: new Date(),
+                    companyId: body.companyId,
+                    cashOut: (body.amountPaid - body.oldAmountPaid).toString(),
+                    purchaseId: body.purchaseId
+                });
+            }
+
+            /* Parallel request to update purchase and insert into cash in out table */
+            const [purchaseUpdated] = await Promise.all([
+                updatePurchaseDBRequest,
+                addToCashInOutDBRequest,
+            ]);
 
             /* Storing items added, updated or removed separately */
             const itemsAdded: Array<PurchaseItemsRequest> = [];
@@ -522,69 +564,77 @@ export const updatePurchase = asyncHandler(
             /* Updating in db */
             /* Adding Item */
             for (const item of itemsAdded) {
-                addItemsReq.push(tx
-                    .insert(purchaseItems)
-                    .values({
-                        purchaseId: body.purchaseId,
-                        itemId: item.itemId,
-                        itemName: item.itemName,
-                        companyId: item.companyId,
-                        unitId: item.unitId,
-                        unitName: item.unitName,
-                        unitsPurchased: item.unitsPurchased.toString(),
-                        pricePerUnit: item.pricePerUnit.toString(),
-                        subtotal: item.subtotal.toFixed(body.decimalRoundTo),
-                        tax: item.tax.toFixed(body.decimalRoundTo),
-                        taxPercent: item.taxPercent.toString(),
-                        totalAfterTax: item.totalAfterTax.toFixed(
-                            body.decimalRoundTo
-                        ),
-                    })
-                    .returning());
+                addItemsReq.push(
+                    tx
+                        .insert(purchaseItems)
+                        .values({
+                            purchaseId: body.purchaseId,
+                            itemId: item.itemId,
+                            itemName: item.itemName,
+                            companyId: item.companyId,
+                            unitId: item.unitId,
+                            unitName: item.unitName,
+                            unitsPurchased: item.unitsPurchased.toString(),
+                            pricePerUnit: item.pricePerUnit.toString(),
+                            subtotal: item.subtotal.toFixed(
+                                body.decimalRoundTo
+                            ),
+                            tax: item.tax.toFixed(body.decimalRoundTo),
+                            taxPercent: item.taxPercent.toString(),
+                            totalAfterTax: item.totalAfterTax.toFixed(
+                                body.decimalRoundTo
+                            ),
+                        })
+                        .returning()
+                );
             }
             /* Updating Items */
             for (const item of itemsUpdated) {
-                updateItemsReq.push(tx
-                    .update(purchaseItems)
-                    .set({
-                        purchaseId: body.purchaseId,
-                        itemId: item.new.itemId,
-                        itemName: item.new.itemName,
-                        companyId: item.new.companyId,
-                        unitId: item.new.unitId,
-                        unitName: item.new.unitName,
-                        unitsPurchased: item.new.unitsPurchased.toString(),
-                        pricePerUnit: item.new.pricePerUnit.toString(),
-                        subtotal: item.new.subtotal.toFixed(
-                            body.decimalRoundTo
-                        ),
-                        tax: item.new.tax.toFixed(body.decimalRoundTo),
-                        taxPercent: item.new.taxPercent.toString(),
-                        totalAfterTax: item.new.totalAfterTax.toFixed(
-                            body.decimalRoundTo
-                        ),
-                        updatedAt: new Date(),
-                    })
-                    .where(
-                        and(
-                            eq(purchaseItems.itemId, item.new.itemId),
-                            eq(purchaseItems.purchaseId, body.purchaseId),
-                            eq(purchaseItems.companyId, body.companyId)
+                updateItemsReq.push(
+                    tx
+                        .update(purchaseItems)
+                        .set({
+                            purchaseId: body.purchaseId,
+                            itemId: item.new.itemId,
+                            itemName: item.new.itemName,
+                            companyId: item.new.companyId,
+                            unitId: item.new.unitId,
+                            unitName: item.new.unitName,
+                            unitsPurchased: item.new.unitsPurchased.toString(),
+                            pricePerUnit: item.new.pricePerUnit.toString(),
+                            subtotal: item.new.subtotal.toFixed(
+                                body.decimalRoundTo
+                            ),
+                            tax: item.new.tax.toFixed(body.decimalRoundTo),
+                            taxPercent: item.new.taxPercent.toString(),
+                            totalAfterTax: item.new.totalAfterTax.toFixed(
+                                body.decimalRoundTo
+                            ),
+                            updatedAt: new Date(),
+                        })
+                        .where(
+                            and(
+                                eq(purchaseItems.itemId, item.new.itemId),
+                                eq(purchaseItems.purchaseId, body.purchaseId),
+                                eq(purchaseItems.companyId, body.companyId)
+                            )
                         )
-                    )
-                    .returning());
+                        .returning()
+                );
             }
             /* Removing Items */
             for (const item of itemsRemoved) {
-                deleteItemsReq.push(tx
-                    .delete(purchaseItems)
-                    .where(
-                        and(
-                            eq(purchaseItems.itemId, item.itemId),
-                            eq(purchaseItems.purchaseId, body.purchaseId),
-                            eq(purchaseItems.companyId, body.companyId)
+                deleteItemsReq.push(
+                    tx
+                        .delete(purchaseItems)
+                        .where(
+                            and(
+                                eq(purchaseItems.itemId, item.itemId),
+                                eq(purchaseItems.purchaseId, body.purchaseId),
+                                eq(purchaseItems.companyId, body.companyId)
+                            )
                         )
-                    ));
+                );
             }
 
             /* Parallel calls */

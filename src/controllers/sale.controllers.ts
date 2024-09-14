@@ -1,4 +1,4 @@
-import { quotations, saleItems, sales } from "db_service";
+import { cashInOut, quotations, saleItems, sales } from "db_service";
 import {
     and,
     asc,
@@ -85,7 +85,10 @@ export const getAllSales = asyncHandler(
             }
             /* Querying for overdue payments */
             if (body?.query?.getOnlyOverduePayments) {
-                overduePaymentsQuery = sql`${sales.paymentDueDate} <= ${moment.utc().format(DATE_TIME_FORMATS.dateFormat)}`;
+                overduePaymentsQuery = and(
+                    eq(sales.isFullyPaid, false),
+                    sql`${sales.paymentDueDate} <= ${moment.utc().format(DATE_TIME_FORMATS.dateFormat)}`
+                );
             }
             if (
                 body?.query?.invoiceNumberSearchQuery &&
@@ -280,6 +283,21 @@ export const addSale = asyncHandler(
                 })
                 .returning();
 
+
+            if (body.amountPaid) {
+                await tx.insert(cashInOut).values({
+                    transactionDateTime: moment
+                        .utc(
+                            body.createdAt,
+                            DATE_TIME_FORMATS.dateTimeFormat24hr
+                        )
+                        .toDate(),
+                    companyId: body.companyId,
+                    cashIn: body.amountPaid.toString(),
+                    saleId: saleAdded[0].saleId
+                });
+            }
+
             /* If quotation number is passed mark the quotation as completed, by setting the saleInvoiceNumber */
             if (body.quotationNumber) {
                 await tx
@@ -354,7 +372,7 @@ export const updateSale = asyncHandler(
 
         await db.transaction(async (tx) => {
             /* Updating in sales table */
-            const saleUpdated = await tx
+            const updateSaleDBRequest = tx
                 .update(sales)
                 .set({
                     invoiceNumber: body.invoiceNumber as number,
@@ -403,6 +421,24 @@ export const updateSale = asyncHandler(
                     )
                 )
                 .returning();
+
+            /* Adding to cash in out table, the difference of current amount paid - old amount paid */
+            let addToCashInOutDBRequest;
+
+            if (body.amountPaid != body.oldAmountPaid) {
+                addToCashInOutDBRequest = tx.insert(cashInOut).values({
+                    transactionDateTime: new Date(),
+                    companyId: body.companyId,
+                    cashIn: (body.amountPaid - body.oldAmountPaid).toString(),
+                    saleId: body.saleId
+                });
+            }
+
+            /* Parallel request to update sale and insert into cash in out table */
+            const [saleUpdated] = await Promise.all([
+                updateSaleDBRequest,
+                addToCashInOutDBRequest,
+            ]);
 
             /* Storing items added, updated or removed separately */
             const itemsAdded: Array<SaleItemsRequest> = [];
@@ -527,69 +563,77 @@ export const updateSale = asyncHandler(
             /* Updating in db */
             /* Adding Item */
             for (const item of itemsAdded) {
-                addItemsReq.push(tx
-                    .insert(saleItems)
-                    .values({
-                        saleId: body.saleId,
-                        itemId: item.itemId,
-                        itemName: item.itemName,
-                        companyId: item.companyId,
-                        unitId: item.unitId,
-                        unitName: item.unitName,
-                        unitsSold: item.unitsSold.toString(),
-                        pricePerUnit: item.pricePerUnit.toString(),
-                        subtotal: item.subtotal.toFixed(body.decimalRoundTo),
-                        tax: item.tax.toFixed(body.decimalRoundTo),
-                        taxPercent: item.taxPercent.toString(),
-                        totalAfterTax: item.totalAfterTax.toFixed(
-                            body.decimalRoundTo
-                        ),
-                    })
-                    .returning());
+                addItemsReq.push(
+                    tx
+                        .insert(saleItems)
+                        .values({
+                            saleId: body.saleId,
+                            itemId: item.itemId,
+                            itemName: item.itemName,
+                            companyId: item.companyId,
+                            unitId: item.unitId,
+                            unitName: item.unitName,
+                            unitsSold: item.unitsSold.toString(),
+                            pricePerUnit: item.pricePerUnit.toString(),
+                            subtotal: item.subtotal.toFixed(
+                                body.decimalRoundTo
+                            ),
+                            tax: item.tax.toFixed(body.decimalRoundTo),
+                            taxPercent: item.taxPercent.toString(),
+                            totalAfterTax: item.totalAfterTax.toFixed(
+                                body.decimalRoundTo
+                            ),
+                        })
+                        .returning()
+                );
             }
             /* Updating Items */
             for (const item of itemsUpdated) {
-                updateItemsReq.push(tx
-                    .update(saleItems)
-                    .set({
-                        saleId: body.saleId,
-                        itemId: item.new.itemId,
-                        itemName: item.new.itemName,
-                        companyId: item.new.companyId,
-                        unitId: item.new.unitId,
-                        unitName: item.new.unitName,
-                        unitsSold: item.new.unitsSold.toString(),
-                        pricePerUnit: item.new.pricePerUnit.toString(),
-                        subtotal: item.new.subtotal.toFixed(
-                            body.decimalRoundTo
-                        ),
-                        tax: item.new.tax.toFixed(body.decimalRoundTo),
-                        taxPercent: item.new.taxPercent.toString(),
-                        totalAfterTax: item.new.totalAfterTax.toFixed(
-                            body.decimalRoundTo
-                        ),
-                        updatedAt: new Date(),
-                    })
-                    .where(
-                        and(
-                            eq(saleItems.itemId, item.new.itemId),
-                            eq(saleItems.saleId, body.saleId),
-                            eq(saleItems.companyId, body.companyId)
+                updateItemsReq.push(
+                    tx
+                        .update(saleItems)
+                        .set({
+                            saleId: body.saleId,
+                            itemId: item.new.itemId,
+                            itemName: item.new.itemName,
+                            companyId: item.new.companyId,
+                            unitId: item.new.unitId,
+                            unitName: item.new.unitName,
+                            unitsSold: item.new.unitsSold.toString(),
+                            pricePerUnit: item.new.pricePerUnit.toString(),
+                            subtotal: item.new.subtotal.toFixed(
+                                body.decimalRoundTo
+                            ),
+                            tax: item.new.tax.toFixed(body.decimalRoundTo),
+                            taxPercent: item.new.taxPercent.toString(),
+                            totalAfterTax: item.new.totalAfterTax.toFixed(
+                                body.decimalRoundTo
+                            ),
+                            updatedAt: new Date(),
+                        })
+                        .where(
+                            and(
+                                eq(saleItems.itemId, item.new.itemId),
+                                eq(saleItems.saleId, body.saleId),
+                                eq(saleItems.companyId, body.companyId)
+                            )
                         )
-                    )
-                    .returning());
+                        .returning()
+                );
             }
             /* Removing Items */
             for (const item of itemsRemoved) {
-                deleteItemsReq.push(tx
-                    .delete(saleItems)
-                    .where(
-                        and(
-                            eq(saleItems.itemId, item.itemId),
-                            eq(saleItems.saleId, body.saleId),
-                            eq(saleItems.companyId, body.companyId)
+                deleteItemsReq.push(
+                    tx
+                        .delete(saleItems)
+                        .where(
+                            and(
+                                eq(saleItems.itemId, item.itemId),
+                                eq(saleItems.saleId, body.saleId),
+                                eq(saleItems.companyId, body.companyId)
+                            )
                         )
-                    ));
+                );
             }
 
             /* Parallel calls */

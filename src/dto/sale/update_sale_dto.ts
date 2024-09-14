@@ -24,6 +24,7 @@ export class UpdateSaleRequest {
         public isFullyPaid: boolean,
         public paymentCompletionDate: string | null,
 
+        public oldAmountPaid: number = 0,
         public decimalRoundTo: number,
 
         public items: SaleItemsRequest[],

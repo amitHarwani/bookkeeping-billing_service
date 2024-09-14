@@ -182,6 +182,7 @@ export const updateSaleValidator = () => {
             throw new Error("invalid payment due date time");
         }),
         body("amountPaid").isNumeric().withMessage("invalid amount paid"),
+        body("oldAmountPaid").isNumeric().withMessage("invalid old amount paid"),
         body("amountDue").isNumeric().withMessage("invalid amount due"),
         body("isFullyPaid")
             .isBoolean()

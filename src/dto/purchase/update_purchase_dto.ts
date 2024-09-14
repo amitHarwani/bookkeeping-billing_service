@@ -23,6 +23,7 @@ export class UpdatePurchaseRequest {
         public paymentCompletionDate: string | null,
         public receiptNumber: string | null,
 
+        public oldAmountPaid: number = 0,
         public decimalRoundTo: number,
 
         public oldItems: PurchaseItem[],
