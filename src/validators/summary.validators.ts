@@ -1,4 +1,4 @@
-import { body } from "express-validator"
+import { body, param } from "express-validator"
 import { REGEX } from "../constants"
 
 
@@ -19,3 +19,7 @@ export const getCashFlowSummaryValidator = () => {
         })
     ]
 }
+
+export const getTopSellersForCurrentMonthValidator = () => {
+    return [param("companyId").isInt().withMessage("invalid company id")];
+};
