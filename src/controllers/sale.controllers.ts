@@ -129,7 +129,7 @@ export const getAllSales = asyncHandler(
                 customQuery
             );
         } else {
-            whereClause = customQuery;
+            whereClause = and(customQuery, eq(sales.companyId, body.companyId));
         }
 
         /* All sale columns */
@@ -283,7 +283,6 @@ export const addSale = asyncHandler(
                 })
                 .returning();
 
-
             if (body.amountPaid) {
                 await tx.insert(cashInOut).values({
                     transactionDateTime: moment
@@ -294,7 +293,7 @@ export const addSale = asyncHandler(
                         .toDate(),
                     companyId: body.companyId,
                     cashIn: body.amountPaid.toString(),
-                    saleId: saleAdded[0].saleId
+                    saleId: saleAdded[0].saleId,
                 });
             }
 
@@ -430,7 +429,7 @@ export const updateSale = asyncHandler(
                     transactionDateTime: new Date(),
                     companyId: body.companyId,
                     cashIn: (body.amountPaid - body.oldAmountPaid).toString(),
-                    saleId: body.saleId
+                    saleId: body.saleId,
                 });
             }
 

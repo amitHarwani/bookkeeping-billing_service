@@ -104,7 +104,10 @@ export const getAllQuotations = asyncHandler(
                 customQuery
             );
         } else {
-            whereClause = customQuery;
+            whereClause = and(
+                customQuery,
+                eq(quotations.companyId, body.companyId)
+            );
         }
 
         /* All quotation columns */

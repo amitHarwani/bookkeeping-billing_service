@@ -76,7 +76,10 @@ export const getAllParties = asyncHandler(
                 customQuery
             );
         } else {
-            whereClause = customQuery;
+            whereClause = and(
+                customQuery,
+                eq(thirdParties.companyId, body.companyId)
+            );
         }
 
         /* All third party columns */

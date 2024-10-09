@@ -140,7 +140,10 @@ export const getAllPurchases = asyncHandler(
                 customQuery
             );
         } else {
-            whereClause = customQuery;
+            whereClause = and(
+                customQuery,
+                eq(purchases.companyId, body.companyId)
+            );
         }
 
         /* All purchase columns */
@@ -431,7 +434,7 @@ export const updatePurchase = asyncHandler(
                     transactionDateTime: new Date(),
                     companyId: body.companyId,
                     cashOut: (body.amountPaid - body.oldAmountPaid).toString(),
-                    purchaseId: body.purchaseId
+                    purchaseId: body.purchaseId,
                 });
             }
 
