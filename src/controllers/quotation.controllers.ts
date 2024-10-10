@@ -203,6 +203,8 @@ export const addQuotation = asyncHandler(
                     totalAfterTax: body.totalAfterTax.toFixed(
                         body.decimalRoundTo
                     ),
+                    companyTaxNumber: body.companyTaxNumber,
+                    partyTaxNumber: body.partyTaxNumber,
                 })
                 .returning();
 
@@ -313,6 +315,8 @@ export const updateQuotation = asyncHandler(
                     totalAfterTax: body.totalAfterTax.toFixed(
                         body.decimalRoundTo
                     ),
+                    companyTaxNumber: body.companyTaxNumber,
+                    partyTaxNumber: body.partyTaxNumber,
                     updatedAt: new Date(),
                 })
                 .where(

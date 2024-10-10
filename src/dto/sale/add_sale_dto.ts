@@ -31,6 +31,8 @@ export class AddSaleRequest {
         public tax: number,
         public taxPercent: number = 0,
         public taxName: string = "",
+        public companyTaxNumber: string = "",
+        public partyTaxNumber: string = "",
         public totalAfterTax: number,
         public isCredit: boolean,
         public paymentDueDate: string | null,

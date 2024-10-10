@@ -260,6 +260,8 @@ export const addSale = asyncHandler(
                     totalAfterTax: body.totalAfterTax.toFixed(
                         body.decimalRoundTo
                     ),
+                    companyTaxNumber: body.companyTaxNumber,
+                    partyTaxNumber: body.partyTaxNumber,
                     isCredit: body.isCredit,
                     paymentDueDate: body.paymentDueDate
                         ? moment
@@ -391,6 +393,8 @@ export const updateSale = asyncHandler(
                     totalAfterTax: body.totalAfterTax.toFixed(
                         body.decimalRoundTo
                     ),
+                    companyTaxNumber: body.companyTaxNumber,
+                    partyTaxNumber: body.partyTaxNumber,
                     isCredit: body.isCredit,
                     paymentDueDate: body.paymentDueDate
                         ? moment

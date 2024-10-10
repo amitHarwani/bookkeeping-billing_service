@@ -16,6 +16,8 @@ export class UpdateQuotationRequest {
         public taxPercent: number = 0,
         public taxName: string = "",
         public totalAfterTax: number,
+        public companyTaxNumber: string = "",
+        public partyTaxNumber: string = "",
 
         public decimalRoundTo: number,
         public oldItems: QuotationItem[],
