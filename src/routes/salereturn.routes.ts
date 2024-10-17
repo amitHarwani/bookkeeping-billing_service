@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from "express";
 import {
     addSaleReturnValidator,
     getAllSaleReturnsValidator,
+    getSaleReturnsOfSaleValidator,
     getSaleReturnValidator,
 } from "../validators/salereturn.validators";
 import { validateInput } from "../validators";
@@ -38,6 +39,16 @@ router.post(
     validateInput,
     checkAccess(30),
     addSaleReturn
+);
+
+router.get(
+    "/get-sale-return-of-sale",
+    getSaleReturnsOfSaleValidator(),
+    validateInput,
+    (req: Request, res: Response, next: NextFunction) => {
+        checkAccess(29, Number(req?.query?.companyId))(req, res, next);
+    },
+    getSaleReturnsOfSaleValidator
 );
 
 export default router;

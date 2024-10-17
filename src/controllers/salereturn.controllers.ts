@@ -32,6 +32,7 @@ import {
     AddSaleReturnRequest,
     AddSaleReturnResponse,
 } from "../dto/salereturn/add_sale_return_dto";
+import { GetSaleReturnsOfSaleResponse } from "../dto/salereturn/get_sale_returns_of_sale_dto";
 
 export const getAllSaleReturns = asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
@@ -215,6 +216,31 @@ export const getSaleReturn = asyncHandler(
     }
 );
 
+export const getSaleReturnOfSale = asyncHandler(
+    async (req: Request, res: Response, next: NextFunction) => {
+        /* Company ID and sale id */
+        const companyId = Number(req?.query?.companyId);
+        const saleId = Number(req?.query?.saleId);
+
+        /* Getting the sale returns of the particular sale */
+        const saleReturnsResponse = await db
+            .select()
+            .from(saleReturns)
+            .where(
+                and(
+                    eq(saleReturns.saleId, saleId),
+                    eq(saleReturns.companyId, companyId)
+                )
+            );
+
+        return res.status(200).json(
+            new ApiResponse<GetSaleReturnsOfSaleResponse>(200, {
+                saleReturns: saleReturnsResponse,
+            })
+        );
+    }
+);
+
 export const addSaleReturn = asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
         const body = req.body as AddSaleReturnRequest;
@@ -243,7 +269,6 @@ export const addSaleReturn = asyncHandler(
                 })
                 .returning();
 
-
             if (body.cashOut > 0) {
                 /* Request to add record in cash inout table */
                 await tx.insert(cashInOut).values({
@@ -263,7 +288,6 @@ export const addSaleReturn = asyncHandler(
             let saleReturnItemsAdded: SaleReturnItem[] = [];
 
             for (const saleReturnItem of body.items) {
-
                 /* Adding to sale return item table */
                 const saleReturnItemAdded = await tx
                     .insert(saleReturnItems)

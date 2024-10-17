@@ -74,3 +74,10 @@ export const addSaleReturnValidator = () => {
         body("items").isArray().withMessage("invalid items field"),
     ];
 };
+
+export const getSaleReturnsOfSaleValidator = () => {
+    return [
+        query("saleId").isInt().withMessage("invalid sale id"),
+        query("companyId").isInt().withMessage("invalid company id")
+    ]
+}
