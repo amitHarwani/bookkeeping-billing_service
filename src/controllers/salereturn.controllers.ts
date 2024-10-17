@@ -269,20 +269,6 @@ export const addSaleReturn = asyncHandler(
                 })
                 .returning();
 
-            if (body.cashOut > 0) {
-                /* Request to add record in cash inout table */
-                await tx.insert(cashInOut).values({
-                    transactionDateTime: moment
-                        .utc(
-                            body.createdAt,
-                            DATE_TIME_FORMATS.dateTimeFormat24hr
-                        )
-                        .toDate(),
-                    companyId: body.companyId,
-                    cashOut: body.cashOut.toFixed(body.decimalRoundTo),
-                    saleReturnId: saleReturnAdded[0].saleReturnId,
-                });
-            }
 
             /* Adding  items to saleReturnItems table */
             let saleReturnItemsAdded: SaleReturnItem[] = [];

@@ -26,7 +26,6 @@ export class AddSaleReturnRequest {
         public taxPercent: number = 0,
         public taxName: string = "",
         public totalAfterTax: number,
-        public cashOut: number,
 
         public decimalRoundTo: number,
 

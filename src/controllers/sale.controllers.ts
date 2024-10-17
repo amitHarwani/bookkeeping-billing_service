@@ -429,12 +429,24 @@ export const updateSale = asyncHandler(
             let addToCashInOutDBRequest;
 
             if (body.amountPaid != body.oldAmountPaid) {
-                addToCashInOutDBRequest = tx.insert(cashInOut).values({
-                    transactionDateTime: new Date(),
-                    companyId: body.companyId,
-                    cashIn: (body.amountPaid - body.oldAmountPaid).toString(),
-                    saleId: body.saleId,
-                });
+                if((body.amountPaid - body.oldAmountPaid) > 0){
+                    /* If amount paid has increased record as cash in */
+                    addToCashInOutDBRequest = tx.insert(cashInOut).values({
+                        transactionDateTime: new Date(),
+                        companyId: body.companyId,
+                        cashIn: (body.amountPaid - body.oldAmountPaid).toString(),
+                        saleId: body.saleId,
+                    });
+                }
+                /* If amount paid has decreased record as cash out */
+                else{
+                    addToCashInOutDBRequest = tx.insert(cashInOut).values({
+                        transactionDateTime: new Date(),
+                        companyId: body.companyId,
+                        cashOut: (body.amountPaid - body.oldAmountPaid).toString(),
+                        saleId: body.saleId,
+                    });
+                }
             }
 
             /* Parallel request to update sale and insert into cash in out table */

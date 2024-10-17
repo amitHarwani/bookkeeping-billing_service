@@ -67,7 +67,6 @@ export const addSaleReturnValidator = () => {
         body("totalAfterTax")
             .isNumeric()
             .withMessage("invalid total after tax"),
-        body("cashOut").isNumeric().withMessage("invalid cash out field"),
         body("decimalRoundTo")
             .isInt()
             .withMessage("invalid decimal round to field"),
