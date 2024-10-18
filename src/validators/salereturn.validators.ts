@@ -55,6 +55,7 @@ export const addSaleReturnValidator = () => {
             .withMessage("invalid sale return number")
             .optional({ values: "null" }),
         body("saleId").isInt().withMessage("invalid sale id"),
+        body("invoiceNumber").isInt().withMessage("invalid invoice number"),
         body("companyId").isInt().withMessage("invalid company id"),
         body("subtotal").isNumeric().withMessage("invalid subtotal"),
         body("tax").isNumeric().withMessage("invalid total after tax"),

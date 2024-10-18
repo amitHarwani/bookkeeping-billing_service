@@ -257,6 +257,7 @@ export const addSaleReturn = asyncHandler(
                         )
                         .toDate(),
                     saleId: body.saleId,
+                    invoiceNumber: body.invoiceNumber,
                     saleReturnNumber: body.saleReturnNumber as number,
                     companyId: body.companyId,
                     subtotal: body.subtotal.toFixed(body.decimalRoundTo),

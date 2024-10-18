@@ -19,6 +19,7 @@ export class AddSaleReturnRequest {
     constructor(
         public createdAt: string,
         public saleId: number,
+        public invoiceNumber: number,
         public saleReturnNumber: number | null,
         public companyId: number,
         public subtotal: number,

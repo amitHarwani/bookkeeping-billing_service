@@ -11,6 +11,7 @@ import {
     addSaleReturn,
     getAllSaleReturns,
     getSaleReturn,
+    getSaleReturnOfSale,
 } from "../controllers/salereturn.controllers";
 
 const router = Router();
@@ -42,13 +43,13 @@ router.post(
 );
 
 router.get(
-    "/get-sale-return-of-sale",
+    "/get-sale-returns-of-sale",
     getSaleReturnsOfSaleValidator(),
     validateInput,
     (req: Request, res: Response, next: NextFunction) => {
         checkAccess(29, Number(req?.query?.companyId))(req, res, next);
     },
-    getSaleReturnsOfSaleValidator
+    getSaleReturnOfSale
 );
 
 export default router;
