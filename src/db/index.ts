@@ -17,4 +17,6 @@ export type SaleItem = InferSelectModel<typeof schema.saleItems>;
 export type Quotation = InferSelectModel<typeof schema.quotations>;
 export type QuotationItem = InferSelectModel<typeof schema.quotationItems>;
 export type SaleReturn = InferSelectModel<typeof schema.saleReturns>
-export type SaleReturnItem = InferSelectModel<typeof schema.saleReturnItems>
+export type SaleReturnItem = InferSelectModel<typeof schema.saleReturnItems>;
+export type PurchaseReturn = InferSelectModel<typeof schema.purchaseReturns>;
+export type PurchaseReturnItem = InferSelectModel<typeof schema.purchaseReturnItems>;

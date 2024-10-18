@@ -36,13 +36,15 @@ import SaleRouter from "./routes/sale.routes";
 import QuotationRouter from "./routes/quotation.routes";
 import SummaryRouter from "./routes/summary.routes";
 import SaleReturnRouter from "./routes/salereturn.routes";
+import PurchaseReturnRouter from "./routes/purchasereturn.routes";
 
 app.use("/party",PartyRouter);
 app.use("/purchase", PurchaseRouter);
 app.use("/sale", SaleRouter);
 app.use("/quotation", QuotationRouter);
 app.use("/summary", SummaryRouter)
-app.use("/sale-return", SaleReturnRouter)
+app.use("/sale-return", SaleReturnRouter);
+app.use("/purchase-return", PurchaseReturnRouter)
 
 
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
