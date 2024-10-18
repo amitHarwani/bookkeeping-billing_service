@@ -443,7 +443,7 @@ export const updateSale = asyncHandler(
                     addToCashInOutDBRequest = tx.insert(cashInOut).values({
                         transactionDateTime: new Date(),
                         companyId: body.companyId,
-                        cashOut: (body.amountPaid - body.oldAmountPaid).toString(),
+                        cashOut: (body.oldAmountPaid - body.amountPaid).toString(),
                         saleId: body.saleId,
                     });
                 }
