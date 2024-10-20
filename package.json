@@ -6,7 +6,7 @@
     "start": "node ./dist/index.js",
     "build": "tsc --build",
     "dev": "nodemon ./src/index.ts",
-    "updateSchemaCommit": "git add . && git commit -m \"update schema\" && git push -u origin main",
+    "updateSchemaCommit": "npm i git+https://github.com/amitHarwani/bookkeeping-db_service.git && git add . && git commit -m \"update schema\" && git push -u origin main",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Amit Harwani",
