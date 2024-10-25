@@ -13,8 +13,7 @@ import {
 import { NextFunction, Request, Response } from "express";
 import moment from "moment";
 import { DATE_TIME_FORMATS } from "../constants";
-import { db, Sale, SaleItem } from "../db";
-import { RecordSaleRequest } from "../dto/item/record_sale_dto";
+import { db, SaleItem } from "../db";
 import {
     AddSaleRequest,
     AddSaleResponse,
@@ -25,15 +24,21 @@ import {
     GetAllSalesResponse,
 } from "../dto/sale/get_all_sales_dto";
 import { GetSaleResponse } from "../dto/sale/get_sale_dto";
-import { ApiError } from "../utils/ApiError";
-import { ApiResponse } from "../utils/ApiResponse";
-import asyncHandler from "../utils/async_handler";
-import { UpdateInventoryHelper } from "../utils/UpdateInventoryHelper";
 import {
     UpdateSaleRequest,
     UpdateSaleResponse,
 } from "../dto/sale/update_sale_dto";
-import { RecordSaleUpdateRequest } from "../dto/item/record_sale_update_dto";
+import {
+    recordSaleGRPC,
+    recordSaleUpdateGRPC,
+} from "../grpc/inventory_service_client";
+import {
+    RecordSaleRequest,
+    RecordSaleUpdateRequest,
+} from "../grpc/proto/inventory_service";
+import { ApiError } from "../utils/ApiError";
+import { ApiResponse } from "../utils/ApiResponse";
+import asyncHandler from "../utils/async_handler";
 
 export const getAllSales = asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
@@ -355,7 +360,7 @@ export const addSale = asyncHandler(
             }
 
             /* Updating Inventory */
-            await new UpdateInventoryHelper().recordSales(recordSaleReqBody);
+            await recordSaleGRPC(recordSaleReqBody);
 
             return res.status(201).json(
                 new ApiResponse<AddSaleResponse>(200, {
@@ -429,21 +434,24 @@ export const updateSale = asyncHandler(
             let addToCashInOutDBRequest;
 
             if (body.amountPaid != body.oldAmountPaid) {
-                if((body.amountPaid - body.oldAmountPaid) > 0){
+                if (body.amountPaid - body.oldAmountPaid > 0) {
                     /* If amount paid has increased record as cash in */
                     addToCashInOutDBRequest = tx.insert(cashInOut).values({
                         transactionDateTime: new Date(),
                         companyId: body.companyId,
-                        cashIn: (body.amountPaid - body.oldAmountPaid).toString(),
+                        cashIn: (
+                            body.amountPaid - body.oldAmountPaid
+                        ).toString(),
                         saleId: body.saleId,
                     });
-                }
+                } else {
                 /* If amount paid has decreased record as cash out */
-                else{
                     addToCashInOutDBRequest = tx.insert(cashInOut).values({
                         transactionDateTime: new Date(),
                         companyId: body.companyId,
-                        cashOut: (body.oldAmountPaid - body.amountPaid).toString(),
+                        cashOut: (
+                            body.oldAmountPaid - body.amountPaid
+                        ).toString(),
                         saleId: body.saleId,
                     });
                 }
@@ -562,7 +570,7 @@ export const updateSale = asyncHandler(
                 for (const item in oldSaleItemsAsObj) {
                     itemsRemoved.push(oldSaleItemsAsObj[item]);
                     /* Adding to record sale update body */
-                    recordSaleUpdateBody.items.itemsRemoved?.push({
+                    recordSaleUpdateBody?.items?.itemsRemoved?.push({
                         itemId: oldSaleItemsAsObj[item].itemId,
                         sellingPricePerUnit:
                             oldSaleItemsAsObj[item].pricePerUnit,
@@ -667,21 +675,16 @@ export const updateSale = asyncHandler(
                 updatedItemsListInDb = [...updatedItemsRes];
             }
 
-            /* Update Inventory helper */
-            const updateInventoryHelper = new UpdateInventoryHelper();
-
             /* If items were added recordSales */
             if (recordSaleBody.items.length) {
-                await updateInventoryHelper.recordSales(recordSaleBody);
+                await recordSaleGRPC(recordSaleBody);
             }
             /* If items were updated or removed record sale update */
             if (
-                recordSaleUpdateBody.items.itemsRemoved?.length ||
-                recordSaleUpdateBody.items.itemsUpdated?.length
+                recordSaleUpdateBody?.items?.itemsRemoved?.length ||
+                recordSaleUpdateBody?.items?.itemsUpdated?.length
             ) {
-                await updateInventoryHelper.recordSalesUpdate(
-                    recordSaleUpdateBody
-                );
+                await recordSaleUpdateGRPC(recordSaleUpdateBody);
             }
 
             return res.status(200).json(

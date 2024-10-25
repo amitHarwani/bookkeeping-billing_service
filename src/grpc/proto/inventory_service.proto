@@ -1,0 +1,68 @@
+
+syntax = "proto3";
+
+package inventory_service;
+
+service InventoryService {
+
+    rpc recordSale(RecordSaleRequest) returns (MessageResponse);
+    rpc recordPurchase(RecordPurchaseRequest) returns (MessageResponse);
+    rpc recordSaleUpdate(RecordSaleUpdateRequest) returns (MessageResponse);
+    rpc recordPurchaseUpdate(RecordPurchaseUpdateRequest) returns (MessageResponse);
+    
+}
+
+message MessageResponse {
+    string message = 1;
+}
+
+message ItemTypeForRecordingSale {
+    double unitsSold = 1;
+    double sellingPricePerUnit = 2;
+    int32 itemId = 3;
+}
+
+message ItemTypeForRecordingPurchase {
+    double unitsPurchased = 1;
+    double pricePerUnit = 2;
+    int32 itemId = 3;
+}
+message RecordSaleRequest {
+    int32 companyId = 1;
+    int32 saleId = 2;
+    repeated ItemTypeForRecordingSale items = 3; 
+}
+
+message RecordPurchaseRequest {
+    int32 companyId = 1;
+    int32 purchaseId = 2;
+    repeated ItemTypeForRecordingPurchase items = 3; 
+}
+
+message ItemsUpdatedInSaleUpdate {
+    ItemTypeForRecordingSale old = 1;
+    ItemTypeForRecordingSale new = 2;
+}
+message ItemsInSaleUpdate {
+    repeated ItemTypeForRecordingSale itemsRemoved = 1;
+    repeated ItemsUpdatedInSaleUpdate itemsUpdated = 2;
+}
+message RecordSaleUpdateRequest {
+    int32 companyId = 1;
+    int32 saleId = 2;
+    ItemsInSaleUpdate items = 3; 
+}
+
+message ItemsUpdatedInPurchaseUpdate {
+    ItemTypeForRecordingPurchase old = 1;
+    ItemTypeForRecordingPurchase new = 2;
+}
+message ItemsInPurchaseUpdate {
+    repeated ItemTypeForRecordingPurchase itemsRemoved = 1;
+    repeated ItemsUpdatedInPurchaseUpdate itemsUpdated = 2;
+}
+message RecordPurchaseUpdateRequest {
+    int32 companyId = 1;
+    int32 purchaseId = 2;
+    ItemsInPurchaseUpdate items = 3; 
+}

@@ -3,17 +3,6 @@ export interface TaxDetailsOfThirdPartyType {
     registrationNumber: string;
 }
 
-export interface ItemTypeForRecordingSale {
-    unitsSold: number;
-    sellingPricePerUnit: number;
-    itemId: number;
-}
-
-export interface ItemTypeForRecordingPurchase {
-    itemId: number;
-    unitsPurchased: number;
-    pricePerUnit: number;
-}
 
 export const REGEX = {
     date: /^\d\d\d\d-(0?[1-9]|1[0-2])-(0?[1-9]|[12][0-9]|3[01])$/,

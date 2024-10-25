@@ -7,12 +7,15 @@
     "build": "tsc --build",
     "dev": "nodemon ./src/index.ts",
     "updateSchemaCommit": "npm i git+https://github.com/amitHarwani/bookkeeping-db_service.git && git add . && git commit -m \"update schema\" && git push -u origin main",
+    "proto:gen": "protoc --plugin=protoc-gen-ts_proto=.\\node_modules\\.bin\\protoc-gen-ts_proto.cmd --ts_proto_out=. --ts_proto_opt=outputServices=grpc-js,env=node,esModuleInterop=true ./src/grpc/proto/*.proto",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Amit Harwani",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@grpc/grpc-js": "^1.12.2",
+    "@grpc/proto-loader": "^0.7.13",
     "argon2": "^0.40.3",
     "axios": "^1.7.4",
     "db_service": "github:amitHarwani/bookkeeping-db_service",
@@ -32,6 +35,7 @@
     "nodemon": "^3.1.4",
     "prettier": "3.3.3",
     "ts-node": "^10.9.2",
+    "ts-proto": "^2.2.5",
     "typescript": "^5.5.4"
   }
 }

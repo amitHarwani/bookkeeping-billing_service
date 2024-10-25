@@ -1,23 +1,4 @@
-import { NextFunction, Request, Response } from "express";
-import asyncHandler from "../utils/async_handler";
-import {
-    AddPurchaseRequest,
-    AddPurchaseResponse,
-    PurchaseItemsRequest,
-} from "../dto/purchase/add_purchase_dto";
-import { db, PurchaseItem } from "../db";
-import {
-    cashInOut,
-    items,
-    purchaseItems,
-    purchases,
-    saleItems,
-} from "db_service";
-import { ApiResponse } from "../utils/ApiResponse";
-import {
-    GetAllPurchasesRequest,
-    GetAllPurchasesResponse,
-} from "../dto/purchase/get_all_purchases_dto";
+import { cashInOut, purchaseItems, purchases } from "db_service";
 import {
     and,
     asc,
@@ -26,22 +7,38 @@ import {
     eq,
     getTableColumns,
     gt,
-    isNull,
     or,
     sql,
 } from "drizzle-orm";
+import { NextFunction, Request, Response } from "express";
 import moment from "moment";
 import { DATE_TIME_FORMATS } from "../constants";
-import { ApiError } from "../utils/ApiError";
-import axios from "axios";
-import { RecordPurchaseRequest } from "../dto/item/record_purchase_dto";
+import { db, PurchaseItem } from "../db";
+import {
+    AddPurchaseRequest,
+    AddPurchaseResponse,
+    PurchaseItemsRequest,
+} from "../dto/purchase/add_purchase_dto";
+import {
+    GetAllPurchasesRequest,
+    GetAllPurchasesResponse,
+} from "../dto/purchase/get_all_purchases_dto";
 import { GetPurchaseResponse } from "../dto/purchase/get_purchase_dto";
 import {
     UpdatePurchaseRequest,
     UpdatePurchaseResponse,
 } from "../dto/purchase/update_purchase_dto";
-import { UpdateInventoryHelper } from "../utils/UpdateInventoryHelper";
-import { RecordPurchaseUpdateRequest } from "../dto/item/record_purchase_update_dto";
+import {
+    recordPurchaseGRPC,
+    recordPurchaseUpdateGRPC,
+} from "../grpc/inventory_service_client";
+import {
+    RecordPurchaseRequest,
+    RecordPurchaseUpdateRequest,
+} from "../grpc/proto/inventory_service";
+import { ApiError } from "../utils/ApiError";
+import { ApiResponse } from "../utils/ApiResponse";
+import asyncHandler from "../utils/async_handler";
 
 export const getAllPurchases = asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
@@ -313,9 +310,7 @@ export const addPurchase = asyncHandler(
             }
 
             /* Updating Inventory */
-            await new UpdateInventoryHelper().recordPurchase(
-                updateInventoryBody
-            );
+            await recordPurchaseGRPC(updateInventoryBody);
 
             return res.status(201).json(
                 new ApiResponse<AddPurchaseResponse>(201, {
@@ -564,7 +559,7 @@ export const updatePurchase = asyncHandler(
                 for (const item in oldPurchaseItemsAsObj) {
                     itemsRemoved.push(oldPurchaseItemsAsObj[item]);
                     /* Adding to record purchase update body */
-                    recordPurchaseUpdateBody.items.itemsRemoved?.push({
+                    recordPurchaseUpdateBody?.items?.itemsRemoved?.push({
                         itemId: oldPurchaseItemsAsObj[item].itemId,
                         pricePerUnit: oldPurchaseItemsAsObj[item].pricePerUnit,
                         unitsPurchased:
@@ -669,21 +664,16 @@ export const updatePurchase = asyncHandler(
                 updatedItemsListInDb = [...updatedItemsRes];
             }
 
-            /* Update Inventory helper */
-            const updateInventoryHelper = new UpdateInventoryHelper();
-
             /* If items were added recordPurchase */
             if (recordPurchaseBody.items.length) {
-                await updateInventoryHelper.recordPurchase(recordPurchaseBody);
+                await recordPurchaseGRPC(recordPurchaseBody);
             }
             /* If items were updated or removed record purchase update */
             if (
-                recordPurchaseUpdateBody.items.itemsRemoved?.length ||
-                recordPurchaseUpdateBody.items.itemsUpdated?.length
+                recordPurchaseUpdateBody?.items?.itemsRemoved?.length ||
+                recordPurchaseUpdateBody?.items?.itemsUpdated?.length
             ) {
-                await updateInventoryHelper.recordPurchaseUpdate(
-                    recordPurchaseUpdateBody
-                );
+                await recordPurchaseUpdateGRPC(recordPurchaseUpdateBody);
             }
 
             return res.status(200).json(
