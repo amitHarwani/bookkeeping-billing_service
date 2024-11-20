@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package auth_service;
+
+service AuthService {
+
+    rpc CheckAccess(CheckAccessGRPCRequest) returns (CheckAccessGRPCResponse) {}
+}
+
+message CheckAccessGRPCRequest {
+    int32 featureId = 1;
+    int32 companyId = 2;
+    string jwtToken = 3;
+    bool isSystemAdminRequest = 4;
+}
+
+message User {
+    string fullName = 1;
+    string email = 2;
+    int32 countryId = 3;
+    string mobileNumber = 4;
+    bool isSubUser = 5;
+    string userId = 6;
+    string refreshToken = 7;
+    bool isLoggedIn = 8;
+    bool isActive = 9;
+    string createdAt = 10;
+    string updatedAt = 11;
+}
+
+message CheckAccessGRPCResponse {
+    User user = 1;
+    bool isAuthorized = 2;
+}

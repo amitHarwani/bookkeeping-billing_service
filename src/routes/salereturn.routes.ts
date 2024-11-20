@@ -6,7 +6,7 @@ import {
     getSaleReturnValidator,
 } from "../validators/salereturn.validators";
 import { validateInput } from "../validators";
-import { checkAccess, isLoggedIn } from "../middlewares/auth.middleware";
+import { checkAccess } from "../middlewares/auth.middleware";
 import {
     addSaleReturn,
     getAllSaleReturns,
