@@ -4,7 +4,13 @@
 
 This bookkeeping application is designed to streamline business financial operations. It provides tools for managing companies, users, inventory, sales, purchases, and reports. The application supports multi-branch setups and role-based access control to ensure secure and efficient operations. With features like dashboards for daily summaries, detailed reports, and filters for quick data retrieval, it is built to meet the needs of businesses of various scales.
 
-## Architecture
+## Architecture 
+![System Design](https://github.com/user-attachments/assets/95731e3b-9951-4de6-bfa2-8c4e36ed53aa)
+
+## ERD
+![final_erd](https://github.com/user-attachments/assets/b78e5594-3ec2-4205-be31-3d691364b9a2)
+
+
 
 ## Supported Features
 
