@@ -2,19 +2,14 @@ FROM node:20.10.0-slim AS build
 
 WORKDIR /usr/src/app
 
-# Installing git
-RUN apt install && apt update && apt-get install git -y
-
 # Installing typescript for transpiling
 RUN npm install -g typescript@5.5.4
 
 # Copying package and package lock
 COPY package*.json ./
 
-# Installing libraries (SSH mount type to install private git repo: db_service,
-# SSH socket or key file passed in build command)
-RUN --mount=type=ssh \
-npm ci
+# Installing libraries
+RUN npm ci
 
 # Copying rest of the code
 COPY . .

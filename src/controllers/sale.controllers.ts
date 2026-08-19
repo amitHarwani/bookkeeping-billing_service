@@ -9,6 +9,7 @@ import {
     gt,
     or,
     sql,
+    max
 } from "drizzle-orm";
 import { NextFunction, Request, Response } from "express";
 import moment from "moment";
@@ -238,6 +239,16 @@ export const addSale = asyncHandler(
         const body = req.body as AddSaleRequest;
 
         await db.transaction(async (tx) => {
+            if (!body.invoiceNumber) {
+                // Autogenerate based on the previous highest invoice number for this company
+                const maxInvoiceResult = await db
+                    .select({ maxInvoice: max(sales.invoiceNumber) })
+                    .from(sales)
+                    .where(eq(sales.companyId, body.companyId));
+
+                const highestInvoice = maxInvoiceResult[0]?.maxInvoice || 0;
+                body.invoiceNumber = highestInvoice + 1;
+            }
             /* Adding to sales table */
             const saleAdded = await tx
                 .insert(sales)
@@ -445,7 +456,7 @@ export const updateSale = asyncHandler(
                         saleId: body.saleId,
                     });
                 } else {
-                /* If amount paid has decreased record as cash out */
+                    /* If amount paid has decreased record as cash out */
                     addToCashInOutDBRequest = tx.insert(cashInOut).values({
                         transactionDateTime: new Date(),
                         companyId: body.companyId,
