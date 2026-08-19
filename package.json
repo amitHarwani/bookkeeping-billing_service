@@ -20,7 +20,7 @@
     "axios": "^1.7.4",
     "db_service": "github:amitHarwani/bookkeeping-db_service",
     "dotenv": "^16.4.5",
-    "drizzle-orm": "^0.32.2",
+    "drizzle-orm": "^0.45.2",
     "express": "^5.0.0",
     "express-validator": "^7.1.0",
     "moment": "^2.30.1",
